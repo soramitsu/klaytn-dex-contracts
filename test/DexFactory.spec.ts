@@ -7,7 +7,7 @@ import { solidity } from 'ethereum-waffle';
 import { getCreate2Address } from './shared/utilities';
 import { factoryFixture } from './shared/fixtures';
 
-import DexPair from '../artifacts/contracts/DexPair.sol/DexPair.json';
+import DexPair from '../artifacts/contracts/swap/DexPair.sol/DexPair.json';
 
 chai.use(solidity);
 

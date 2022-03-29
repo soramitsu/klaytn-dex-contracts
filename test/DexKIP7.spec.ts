@@ -21,7 +21,7 @@ describe('DexKIP7', () => {
   let other: SignerWithAddress;
   beforeEach(async () => {
     [wallet, other] = await ethers.getSigners();
-    tokenFactory = await ethers.getContractFactory('KIP7');
+    tokenFactory = await ethers.getContractFactory('DexKIP7Test');
     token = await tokenFactory.deploy(TOTAL_SUPPLY);
   });
 
@@ -105,6 +105,7 @@ describe('DexKIP7', () => {
       { owner: wallet.address, spender: other.address, value: TEST_AMOUNT },
       nonce,
       deadline,
+      31337,
     );
     const signer = new ethers.Wallet(process.env.HH_PIVATE_KEY as string);
     const { v, r, s } = ecsign(

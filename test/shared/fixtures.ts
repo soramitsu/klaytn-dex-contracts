@@ -36,7 +36,7 @@ export async function pairFixture(
   deployer: SignerWithAddress,
 ): Promise<PairFixture> {
   const factory = await factoryFixture(deployer);
-  const tokenFactory = await ethers.getContractFactory('KIP7');
+  const tokenFactory = await ethers.getContractFactory('KIP7Mock');
   const tokenA = await tokenFactory.deploy(ethers.utils.parseEther('10000'));
   const tokenB = await tokenFactory.deploy(ethers.utils.parseEther('10000'));
   await factory.createPair(tokenA.address, tokenB.address); // overrides
@@ -54,7 +54,7 @@ export async function pairFixture(
 
 export async function routerFixture(deployer: SignerWithAddress): Promise<RouterFixture> {
   // deploy tokens
-  const tokenFactory = await ethers.getContractFactory('KIP7');
+  const tokenFactory = await ethers.getContractFactory('KIP7Mock');
   const WKLAY9Factory = await ethers.getContractFactory('WETH9');
   const tokenA = await tokenFactory.deploy(ethers.utils.parseEther('10000'));
   const tokenB = await tokenFactory.deploy(ethers.utils.parseEther('10000'));

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
-import '../DexKIP7.sol';
+import '../tokens/KIP7.sol';
 
-contract KIP7 is DexKIP7 {
-    constructor(uint _totalSupply) {
+contract KIP7Mock is KIP7 {
+    constructor(uint _totalSupply) KIP7('TestToken','TST',18){
         _mint(msg.sender, _totalSupply);
     }
 }

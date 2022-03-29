@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity =0.8.12;
 
-import './interfaces/IDexKIP7.sol';
-import './interfaces/IKIPReciever.sol';
-import './libraries/Address.sol';
-import './utils/KIP13.sol';
+import '../interfaces/IDexKIP7.sol';
+import '../interfaces/IKIPReciever.sol';
+import '../libraries/Address.sol';
+import '../utils/KIP13.sol';
 
 contract DexKIP7 is IDexKIP7, KIP13 {
     using Address for address;

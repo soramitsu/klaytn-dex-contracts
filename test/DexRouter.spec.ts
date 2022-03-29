@@ -331,6 +331,7 @@ describe('DexRouter', () => {
       },
       nonce,
       constants.MaxUint256,
+      31337,
     );
     const signer = new ethers.Wallet(process.env.HH_PIVATE_KEY as string);
     const { v, r, s } = ecsign(Buffer.from(digest.slice(2), 'hex'), Buffer.from(signer.privateKey.slice(2), 'hex'));
@@ -370,6 +371,7 @@ describe('DexRouter', () => {
       },
       nonce,
       constants.MaxUint256,
+      31337,
     );
     const signer = new ethers.Wallet(process.env.HH_PIVATE_KEY as string);
     const { v, r, s } = ecsign(Buffer.from(digest.slice(2), 'hex'), Buffer.from(signer.privateKey.slice(2), 'hex'));
@@ -588,7 +590,7 @@ describe('DexRouter', () => {
         },
       );
       const receipt = await tx.wait();
-      expect(receipt.gasUsed).to.eq(104171);
+      expect(receipt.gasUsed).to.eq(104259);
     }).retries(3);
   });
 
@@ -696,7 +698,7 @@ describe('DexRouter', () => {
         constants.MaxUint256,
       );
       const receipt = await tx.wait();
-      expect(receipt.gasUsed).to.eq(101239);
+      expect(receipt.gasUsed).to.eq(101461);
     }).retries(3);
   });
 
@@ -816,6 +818,7 @@ describe('DexRouter fee-on-transfer tokens', async () => {
       },
       nonce,
       constants.MaxUint256,
+      31337,
     );
     const signer = new ethers.Wallet(process.env.HH_PIVATE_KEY as string);
     const { v, r, s } = ecsign(
@@ -934,7 +937,7 @@ describe('DexRouter fee-on-transfer tokens: reloaded', async () => {
     const fixture = await routerFixture(wallet);
     router = fixture.router02;
 
-    const DTTFactory = await ethers.getContractFactory('KIP7');
+    const DTTFactory = await ethers.getContractFactory('KIP7Mock');
     DTT = await DTTFactory.deploy(ethers.utils.parseEther('10000'));
     DTT2 = await DTTFactory.deploy(ethers.utils.parseEther('10000'));
 

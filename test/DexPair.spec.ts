@@ -172,7 +172,7 @@ describe('DexPair', () => {
     await mineBlock((await ethers.provider.getBlock('latest')).timestamp + 1);
     const tx = await pair.swap(expectedOutputAmount, 0, wallet.address, '0x');
     const receipt = await tx.wait();
-    expect(receipt.gasUsed).to.eq(73986);
+    expect(receipt.gasUsed).to.eq(74104);
   });
 
   it('burn', async () => {

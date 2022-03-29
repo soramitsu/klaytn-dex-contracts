@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity =0.8.12;
 
-import "./libraries/DexLibrary.sol";
-import "./libraries/TransferHelper.sol";
-import "./interfaces/IDexRouter.sol";
-import "./interfaces/IDexFactory.sol";
-import "./interfaces/IKIP7.sol";
-import "./interfaces/IWKLAY.sol";
+import "../libraries/DexLibrary.sol";
+import "../libraries/TransferHelper.sol";
+import "../interfaces/IDexRouter.sol";
+import "../interfaces/IDexFactory.sol";
+import "../interfaces/IKIP7.sol";
+import "../interfaces/IWKLAY.sol";
 import "./Errors.sol";
 
 contract DexRouter is IDexRouter {
