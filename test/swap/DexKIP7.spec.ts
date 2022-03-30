@@ -7,7 +7,7 @@ import {
 } from 'ethers/lib/utils';
 import { constants, Contract, ContractFactory } from 'ethers';
 import { ecsign } from 'ethereumjs-util';
-import { getApprovalDigest } from './shared/utilities';
+import { getApprovalDigest } from '../shared/utilities';
 
 dotenv.config();
 

@@ -4,8 +4,8 @@ import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { solidity } from 'ethereum-waffle';
 
-import { mineBlock, encodePrice } from './shared/utilities';
-import { pairFixture } from './shared/fixtures';
+import { mineBlock, encodePrice } from '../shared/utilities';
+import { pairFixture } from '../shared/fixtures';
 
 chai.use(solidity);
 

@@ -4,10 +4,8 @@ import { Contract, constants } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { solidity } from 'ethereum-waffle';
 
-import { getCreate2Address } from './shared/utilities';
-import { factoryFixture } from './shared/fixtures';
-
-import DexPair from '../artifacts/contracts/swap/DexPair.sol/DexPair.json';
+import { getCreate2Address } from '../shared/utilities';
+import { factoryFixture } from '../shared/fixtures';
 
 chai.use(solidity);
 
@@ -32,7 +30,7 @@ describe('DexFactory', () => {
   });
 
   async function createPair(tokens: [string, string]) {
-    const { bytecode } = DexPair;
+    const bytecode = await (await ethers.getContractFactory('DexPair')).bytecode;
     const create2Address = getCreate2Address(factory.address, tokens, bytecode);
     await expect(factory.createPair(...tokens))
       .to.emit(factory, 'PairCreated')
@@ -47,7 +45,7 @@ describe('DexFactory', () => {
     expect(await factory.allPairs(0)).to.eq(create2Address);
     expect(await factory.allPairsLength()).to.eq(1);
 
-    const pair = new Contract(create2Address, JSON.stringify(DexPair.abi), ethers.provider);
+    const pair = await ethers.getContractAt('DexPair', create2Address);
     expect(await pair.factory()).to.eq(factory.address);
     expect(await pair.token0()).to.eq(TEST_ADDRESSES[0]);
     expect(await pair.token1()).to.eq(TEST_ADDRESSES[1]);

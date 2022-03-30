@@ -3,7 +3,7 @@ import chai, { expect } from 'chai';
 import { Contract, constants } from 'ethers';
 import { solidity } from 'ethereum-waffle';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { routerFixture } from './shared/fixtures';
+import { routerFixture } from '../shared/fixtures';
 
 chai.use(solidity);
 

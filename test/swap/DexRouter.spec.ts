@@ -6,8 +6,8 @@ import { Contract, BigNumber, constants } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { hexlify } from 'ethers/lib/utils';
 import { ecsign } from 'ethereumjs-util';
-import { routerFixture } from './shared/fixtures';
-import { getApprovalDigest, mineBlock } from './shared/utilities';
+import { routerFixture } from '../shared/fixtures';
+import { getApprovalDigest, mineBlock } from '../shared/utilities';
 
 chai.use(solidity);
 dotenv.config();
