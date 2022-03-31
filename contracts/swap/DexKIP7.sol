@@ -124,6 +124,7 @@ contract DexKIP7 is IDexKIP7, KIP13 {
 
         uint currentAllowance = allowance[sender][msg.sender];
         if (currentAllowance != type(uint).max) {
+            require(currentAllowance >= amount, "KIP7: insufficient allowance");
             allowance[sender][msg.sender] = currentAllowance - amount;
         }
         _transfer(sender, recipient, amount);

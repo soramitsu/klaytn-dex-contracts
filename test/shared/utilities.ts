@@ -70,6 +70,18 @@ export async function getApprovalDigest(
   );
 }
 
+export async function advanceBlock() {
+  return ethers.provider.send('evm_mine', []);
+}
+
+export async function advanceBlockTo(blockNumber: number) {
+  // eslint-disable-next-line no-plusplus
+  for (let i = await ethers.provider.getBlockNumber(); i < blockNumber; i++) {
+    // eslint-disable-next-line no-await-in-loop
+    await advanceBlock();
+  }
+}
+
 export async function mineBlock(timestamp: number): Promise<void> {
   // eslint-disable-next-line no-async-promise-executor
   ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]);

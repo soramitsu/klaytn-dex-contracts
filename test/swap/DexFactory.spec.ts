@@ -62,7 +62,7 @@ describe('DexFactory', () => {
   it('createPair:gas', async () => {
     const tx = await factory.createPair(...TEST_ADDRESSES);
     const receipt = await tx.wait();
-    expect(receipt.gasUsed).to.eq(2216055);
+    expect(receipt.gasUsed).to.eq(2232117);
     console.log(await factory.INIT());
   });
 

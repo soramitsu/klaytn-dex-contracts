@@ -19,7 +19,7 @@ library DexLibrary {
                 hex'ff',
                 factory,
                 keccak256(abi.encodePacked(token0, token1)),
-                hex'a4b6893198ac4110259ec54cddce2c2dac0e78ed982cfc8fcb68330733777501' // init code hash
+                hex'582a4796fb2e3c10c1e98e48d70eb38f8ea8a9a24d7d35053c46225b553c145a' // init code hash
             )))));
     }
 
