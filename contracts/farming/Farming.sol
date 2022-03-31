@@ -166,7 +166,7 @@ contract Farming is Ownable {
         uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
         uint256 ptnReward = (multiplier * ptnPerBlock * pool.allocPoint) / totalAllocPoint;
         ptn.mint(address(this), ptnReward);
-        pool.accPtnPerShare = pool.accPtnPerShare + ((ptnReward * 1e12) / lpSupply);
+        pool.accPtnPerShare = pool.accPtnPerShare + (ptnReward * 1e12 / lpSupply);
         pool.lastRewardBlock = block.number;
     }
 
@@ -276,6 +276,20 @@ contract Farming is Ownable {
         IKIP7(pool.lpToken).safeTransfer(address(msg.sender), oldUserAmount);
         emit EmergencyWithdraw(msg.sender, _pid, oldUserAmount);
 
+    }
+
+    // View function to see pending CAKEs on frontend.
+    function pendingPtn(uint256 _pid, address _user) external view returns (uint256) {
+        PoolInfo storage pool = poolInfo[_pid];
+        UserInfo storage user = userInfo[_pid][_user];
+        uint256 accPtnPerShare = pool.accPtnPerShare;
+        uint256 lpSupply = IKIP7(pool.lpToken).balanceOf(address(this));
+        if (block.number > pool.lastRewardBlock && lpSupply != 0) {
+            uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
+            uint256 ptnReward = (multiplier * ptnPerBlock * pool.allocPoint) / totalAllocPoint;
+            accPtnPerShare = accPtnPerShare + (ptnReward * 1e12 / lpSupply);
+        }
+        return (user.amount * accPtnPerShare / 1e12 ) - user.rewardDebt;
     }
 
     /**

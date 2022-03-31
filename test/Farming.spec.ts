@@ -14,18 +14,17 @@ describe('Farming', () => {
   let lp2: Contract;
   let lp3: Contract;
   let lpFactory: ContractFactory;
-  let bn: number;
   beforeEach(async () => {
     [minter, alice, bob] = await ethers.getSigners();
-    bn = (await ethers.provider.getBlock('latest')).number;
     const ptnFactory = await ethers.getContractFactory('PlatformToken');
     lpFactory = await ethers.getContractFactory('DexKIP7Test');
     const farmingFactory = await ethers.getContractFactory('Farming');
     ptn = await ptnFactory.deploy();
+    expect(await ptn.owner()).to.be.equal(minter.address);
     lp1 = await lpFactory.deploy('1000000');
     lp2 = await lpFactory.deploy('1000000');
     lp3 = await lpFactory.deploy('1000000');
-    chef = await farmingFactory.deploy(ptn.address, 1000, bn);
+    chef = await farmingFactory.deploy(ptn.address, 1000, 100);
     await ptn.transferOwnership(chef.address);
     await lp1.transfer(bob.address, '2000');
     await lp2.transfer(bob.address, '2000');
@@ -53,7 +52,7 @@ describe('Farming', () => {
     await chef.add('100', lp9.address, true);
     expect(await chef.poolLength()).to.be.equal(10);
 
-    await advanceBlockTo(bn + 70);
+    await advanceBlockTo(170);
     await lp1.connect(alice).approve(chef.address, '1000');
     expect(await ptn.balanceOf(alice.address)).to.be.equal(0);
     await chef.connect(alice).deposit(1, '20');
@@ -137,7 +136,7 @@ describe('Farming', () => {
     expect(await ptn.balanceOf(alice.address)).to.be.equal('455');
     expect(await ptn.balanceOf(bob.address)).to.be.equal('150');
 
-    await advanceBlockTo(bn + 165);
+    await advanceBlockTo(265);
 
     await chef.connect(alice).enterStaking(0);
     await chef.connect(bob).enterStaking(0);
