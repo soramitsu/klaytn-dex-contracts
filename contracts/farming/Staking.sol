@@ -5,9 +5,11 @@ import "../interfaces/IKIP7.sol";
 import "../libraries/TransferHelper.sol";
 import "../tokens/PlatformToken.sol";
 import "../utils/Ownable.sol";
+import '../utils/SafeCast.sol';
 
 contract Staking is Ownable {
     // Info of each user.
+    using SafeCast for uint256;
     struct UserInfo {
         uint256 amount; // How many LP tokens the user has provided.
         uint256 rewardDebt; // Reward debt. See explanation below.
@@ -28,9 +30,9 @@ contract Staking is Ownable {
     struct PoolInfo {
         address stakingToken; // Address of LP token contract.
         uint256 stakingTokenTotalAmount;
-        uint256 allocPoint; // How many allocation points assigned to this pool. PTNs to distribute per block.
-        uint256 lastRewardBlock; // Last block number that PTNs distribution occurs.
-        uint256 accPtnPerShare; // Accumulated PTNs per share, times 1e12.
+        uint64 allocPoint; // How many allocation points assigned to this pool. PTNs to distribute per block.
+        uint64 lastRewardBlock; // Last block number that PTNs distribution occurs.
+        uint128 accPtnPerShare; // Accumulated PTNs per share, times 1e12.
     }
 
     // The PTN TOKEN!
@@ -44,6 +46,7 @@ contract Staking is Ownable {
 
     // Info of each pool.
     PoolInfo[] public poolInfo;
+    mapping (address => bool) public addedTokens;
     // Info of each user that stakes LP tokens.
     mapping(uint256 => mapping(address => UserInfo)) public userInfo;
     // Total allocation points. Must be the sum of all allocation points in all pools.
@@ -73,13 +76,6 @@ contract Staking is Ownable {
         BONUS_MULTIPLIER = multiplierNumber;
     }
 
-    function checkForDuplicate(address _token) internal view {
-        uint256 length = poolInfo.length;
-        for (uint256 _pid; _pid < length; _pid++) {
-            require(poolInfo[_pid].stakingToken != _token, "add: pool already exists!!!!");
-        }
-    }
-
      // Return reward multiplier over the given _from to _to block.
     function getMultiplier(uint256 _from, uint256 _to) public view returns (uint256) {
         return (_to - _from) * BONUS_MULTIPLIER;
@@ -91,7 +87,7 @@ contract Staking is Ownable {
 
     // Add a new lp to the pool. Can only be called by the owner.
     function add(uint256 _allocPoint, address _stakingToken, bool _withUpdate) public onlyOwner {
-        checkForDuplicate(_stakingToken);
+        require(addedTokens[_stakingToken] == false, "Token already added");
         if (_withUpdate) {
             massUpdatePools();
         }
@@ -100,10 +96,11 @@ contract Staking is Ownable {
         poolInfo.push(PoolInfo({
             stakingToken: _stakingToken,
             stakingTokenTotalAmount: 0,
-            allocPoint: _allocPoint,
-            lastRewardBlock: lastRewardBlock,
+            allocPoint: _allocPoint.toUint64(),
+            lastRewardBlock: lastRewardBlock.toUint64(),
             accPtnPerShare: 0
         }));
+        addedTokens[_stakingToken] = true;
     }
 
     // Update the given pool's PTN allocation point. Can only be called by the owner.
@@ -112,8 +109,8 @@ contract Staking is Ownable {
             massUpdatePools();
         }
         uint256 prevAllocPoint = poolInfo[_pid].allocPoint;
-        poolInfo[_pid].allocPoint = _allocPoint;
         if (prevAllocPoint != _allocPoint) {
+            poolInfo[_pid].allocPoint = _allocPoint.toUint64();
             totalAllocPoint = totalAllocPoint - prevAllocPoint + _allocPoint;
         }
     }
@@ -129,19 +126,16 @@ contract Staking is Ownable {
     // Update reward variables of the given pool to be up-to-date.
     function updatePool(uint256 _pid) public {
         PoolInfo storage pool = poolInfo[_pid];
-        if (block.number <= pool.lastRewardBlock) {
-            return;
+        if (block.number > pool.lastRewardBlock) {
+            uint256 lpSupply = IKIP7(pool.stakingToken).balanceOf(address(this));
+            if (lpSupply > 0) {
+                uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
+                uint256 ptnReward = (multiplier * ptnPerBlock * pool.allocPoint) / totalAllocPoint;
+                ptn.mint(address(this), ptnReward);
+                pool.accPtnPerShare = pool.accPtnPerShare + (ptnReward * 1e12 / lpSupply).toUint64();
+            }
+            pool.lastRewardBlock = (block.number).toUint64();
         }
-        uint256 lpSupply = IKIP7(pool.stakingToken).balanceOf(address(this));
-        if (lpSupply == 0) {
-            pool.lastRewardBlock = block.number;
-            return;
-        }
-        uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-        uint256 ptnReward = (multiplier * ptnPerBlock * pool.allocPoint) / totalAllocPoint;
-        ptn.mint(address(this), ptnReward);
-        pool.accPtnPerShare = pool.accPtnPerShare + (ptnReward * 1e12 / lpSupply);
-        pool.lastRewardBlock = block.number;
     }
 
     // Deposit LP tokens to Farming Contract for PTN allocation.

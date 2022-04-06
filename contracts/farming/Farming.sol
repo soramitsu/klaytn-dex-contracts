@@ -4,9 +4,11 @@ pragma solidity =0.8.12;
 import "../interfaces/IKIP7.sol";
 import "../tokens/PlatformToken.sol";
 import "../utils/Ownable.sol";
+import '../utils/SafeCast.sol';
 
 contract Farming is Ownable {
     // Info of each user.
+    using SafeCast for uint256;
     struct UserInfo {
         uint256 amount; // How many LP tokens the user has provided.
         uint256 rewardDebt; // Reward debt. See explanation below.
@@ -27,9 +29,9 @@ contract Farming is Ownable {
     struct PoolInfo {
         address lpToken; // Address of LP token contract.
         uint256 stakingTokenTotalAmount;
-        uint256 allocPoint; // How many allocation points assigned to this pool. PTNs to distribute per block.
-        uint256 lastRewardBlock; // Last block number that PTNs distribution occurs.
-        uint256 accPtnPerShare; // Accumulated PTNs per share, times 1e12.
+        uint64 allocPoint; // How many allocation points assigned to this pool. PTNs to distribute per block.
+        uint64 lastRewardBlock; // Last block number that PTNs distribution occurs.
+        uint128 accPtnPerShare; // Accumulated PTNs per share, times 1e12.
     }
 
     // The PTN TOKEN!
@@ -43,12 +45,15 @@ contract Farming is Ownable {
 
     // Info of each pool.
     PoolInfo[] public poolInfo;
+    mapping (address => bool) public addedTokens;
     // Info of each user that stakes LP tokens.
     mapping(uint256 => mapping(address => UserInfo)) public userInfo;
     // Total allocation points. Must be the sum of all allocation points in all pools.
     uint256 public totalAllocPoint;
     // The block number when PTN mining starts.
     uint256 public startBlock;
+
+    uint256 private constant ACC_PRECISION = 1e12;
 
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
@@ -72,7 +77,7 @@ contract Farming is Ownable {
             lpToken: _ptn,
             stakingTokenTotalAmount: 0,
             allocPoint: 1000,
-            lastRewardBlock: startBlock,
+            lastRewardBlock: startBlock.toUint64(),
             accPtnPerShare: 0
         }));
 
@@ -82,13 +87,6 @@ contract Farming is Ownable {
 
     function updateMultiplier(uint256 multiplierNumber) public onlyOwner {
         BONUS_MULTIPLIER = multiplierNumber;
-    }
-
-    function checkForDuplicate(address _token) internal view {
-        uint256 length = poolInfo.length;
-        for (uint256 _pid; _pid < length; _pid++) {
-            require(poolInfo[_pid].lpToken != _token, "add: pool already exists!!!!");
-        }
     }
 
      // Return reward multiplier over the given _from to _to block.
@@ -102,7 +100,7 @@ contract Farming is Ownable {
 
     // Add a new lp to the pool. Can only be called by the owner.
     function add(uint256 _allocPoint, address _lpToken, bool _withUpdate) public onlyOwner {
-        checkForDuplicate(_lpToken);
+        require(addedTokens[_lpToken] == false, "Token already added");
         if (_withUpdate) {
             massUpdatePools();
         }
@@ -111,11 +109,12 @@ contract Farming is Ownable {
         poolInfo.push(PoolInfo({
             lpToken: _lpToken,
             stakingTokenTotalAmount: 0,
-            allocPoint: _allocPoint,
-            lastRewardBlock: lastRewardBlock,
+            allocPoint: _allocPoint.toUint64(),
+            lastRewardBlock: lastRewardBlock.toUint64(),
             accPtnPerShare: 0
         }));
         updateStakingPool();
+        addedTokens[_lpToken] = true;
     }
 
     // Update the given pool's PTN allocation point. Can only be called by the owner.
@@ -124,23 +123,19 @@ contract Farming is Ownable {
             massUpdatePools();
         }
         uint256 prevAllocPoint = poolInfo[_pid].allocPoint;
-        poolInfo[_pid].allocPoint = _allocPoint;
         if (prevAllocPoint != _allocPoint) {
+            poolInfo[_pid].allocPoint = _allocPoint.toUint64();
             totalAllocPoint = totalAllocPoint - prevAllocPoint + _allocPoint;
             updateStakingPool();
         }
     }
 
     function updateStakingPool() internal {
-        uint256 length = poolInfo.length;
-        uint256 points = 0;
-        for (uint256 pid = 1; pid < length; ++pid) {
-            points = points + poolInfo[pid].allocPoint;
-        }
+        uint256 allocPool = totalAllocPoint - poolInfo[0].allocPoint;
+        uint256 points = allocPool / 3;
         if (points != 0) {
-            points = points / 3;
-            totalAllocPoint = totalAllocPoint - poolInfo[0].allocPoint + points;
-            poolInfo[0].allocPoint = points;
+            totalAllocPoint = allocPool + points;
+            poolInfo[0].allocPoint = points.toUint64();
         }
     }
 
@@ -155,19 +150,16 @@ contract Farming is Ownable {
     // Update reward variables of the given pool to be up-to-date.
     function updatePool(uint256 _pid) public {
         PoolInfo storage pool = poolInfo[_pid];
-        if (block.number <= pool.lastRewardBlock) {
-            return;
+        if (block.number > pool.lastRewardBlock) {
+            uint256 lpSupply = IKIP7(pool.lpToken).balanceOf(address(this));
+            if (lpSupply > 0) {
+                uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
+                uint256 ptnReward = (multiplier * ptnPerBlock * pool.allocPoint) / totalAllocPoint;
+                ptn.mint(address(this), ptnReward);
+                pool.accPtnPerShare = pool.accPtnPerShare + (ptnReward * ACC_PRECISION / lpSupply).toUint128();
+            }
+            pool.lastRewardBlock = (block.number).toUint64();
         }
-        uint256 lpSupply = IKIP7(pool.lpToken).balanceOf(address(this));
-        if (lpSupply == 0) {
-            pool.lastRewardBlock = block.number;
-            return;
-        }
-        uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-        uint256 ptnReward = (multiplier * ptnPerBlock * pool.allocPoint) / totalAllocPoint;
-        ptn.mint(address(this), ptnReward);
-        pool.accPtnPerShare = pool.accPtnPerShare + (ptnReward * 1e12 / lpSupply);
-        pool.lastRewardBlock = block.number;
     }
 
     // Deposit LP tokens to Farming Contract for PTN allocation.
@@ -179,17 +171,18 @@ contract Farming is Ownable {
         UserInfo storage user = userInfo[_pid][msg.sender];
         updatePool(_pid);
         if (user.amount > 0) {
-            uint256 pending = (user.amount * pool.accPtnPerShare / 1e12) - user.rewardDebt;
+            uint256 pending = (user.amount * pool.accPtnPerShare / ACC_PRECISION) - user.rewardDebt;
             if(pending > 0) {
                 safePtnTransfer(msg.sender, pending);
             }
         }
         if (_amount > 0) {
             IKIP7(pool.lpToken).safeTransferFrom(address(msg.sender), address(this), _amount);
-            user.amount += _amount;
             pool.stakingTokenTotalAmount += _amount;
+            user.amount += _amount;
+            
         }
-        user.rewardDebt = user.amount * pool.accPtnPerShare / 1e12;
+        user.rewardDebt = user.amount * pool.accPtnPerShare / ACC_PRECISION;
         emit Deposit(msg.sender, _pid, _amount);
     }
 
@@ -202,7 +195,7 @@ contract Farming is Ownable {
         require(user.amount >= _amount, "withdraw: not good");
 
         updatePool(_pid);
-        uint256 pending = (user.amount * pool.accPtnPerShare / 1e12) - user.rewardDebt;
+        uint256 pending = (user.amount * pool.accPtnPerShare / ACC_PRECISION) - user.rewardDebt;
         if(pending > 0) {
             safePtnTransfer(msg.sender, pending);
         }
@@ -211,7 +204,7 @@ contract Farming is Ownable {
             pool.stakingTokenTotalAmount -= _amount;
             IKIP7(pool.lpToken).safeTransfer(address(msg.sender), _amount);
         }
-        user.rewardDebt = user.amount * pool.accPtnPerShare / 1e12;
+        user.rewardDebt = user.amount * pool.accPtnPerShare / ACC_PRECISION;
         emit Withdraw(msg.sender, _pid, _amount);
     }
 
@@ -221,7 +214,7 @@ contract Farming is Ownable {
         UserInfo storage user = userInfo[0][msg.sender];
         updatePool(0);
         if (user.amount > 0) {
-            uint256 pending = (user.amount * pool.accPtnPerShare / 1e12) - user.rewardDebt;
+            uint256 pending = (user.amount * pool.accPtnPerShare / ACC_PRECISION) - user.rewardDebt;
             if(pending > 0) {
                 safePtnTransfer(msg.sender, pending);
             }
@@ -231,7 +224,7 @@ contract Farming is Ownable {
             pool.stakingTokenTotalAmount += _amount;
             user.amount += _amount;
         }
-        user.rewardDebt = user.amount * pool.accPtnPerShare / 1e12;
+        user.rewardDebt = user.amount * pool.accPtnPerShare / ACC_PRECISION;
         emit Deposit(msg.sender, 0, _amount);
     }
 
@@ -241,7 +234,7 @@ contract Farming is Ownable {
         UserInfo storage user = userInfo[0][msg.sender];
         require(user.amount >= _amount, "withdraw: not good");
         updatePool(0);
-        uint256 pending = (user.amount * pool.accPtnPerShare / 1e12) - user.rewardDebt;
+        uint256 pending = (user.amount * pool.accPtnPerShare / ACC_PRECISION) - user.rewardDebt;
         if(pending > 0) {
             safePtnTransfer(msg.sender, pending);
         }
@@ -250,7 +243,7 @@ contract Farming is Ownable {
             pool.stakingTokenTotalAmount -= _amount;
             IKIP7(pool.lpToken).safeTransfer(address(msg.sender), _amount);
         }
-        user.rewardDebt = user.amount * pool.accPtnPerShare / 1e12;
+        user.rewardDebt = user.amount * pool.accPtnPerShare / ACC_PRECISION;
         emit Withdraw(msg.sender, 0, _amount);
     }
 
@@ -287,9 +280,9 @@ contract Farming is Ownable {
         if (block.number > pool.lastRewardBlock && lpSupply != 0) {
             uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
             uint256 ptnReward = (multiplier * ptnPerBlock * pool.allocPoint) / totalAllocPoint;
-            accPtnPerShare = accPtnPerShare + (ptnReward * 1e12 / lpSupply);
+            accPtnPerShare = accPtnPerShare + (ptnReward * ACC_PRECISION / lpSupply);
         }
-        return (user.amount * accPtnPerShare / 1e12 ) - user.rewardDebt;
+        return (user.amount * accPtnPerShare / ACC_PRECISION ) - user.rewardDebt;
     }
 
     /**
