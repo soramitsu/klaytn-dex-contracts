@@ -10,12 +10,10 @@ import 'hardhat-gas-reporter';
 dotenv.config();
 
 let mnemonic: string;
-let apiKey: string | undefined;
 if (!process.env.MNEMONIC) {
   throw new Error('Please set your MNEMONIC in a .env file');
 } else {
   mnemonic = process.env.MNEMONIC;
-  apiKey = process.env.API_KEY;
 }
 
 // You need to export an object to set up your config
@@ -51,11 +49,11 @@ const config: HardhatUserConfig = {
     //   },
     // },
     baobab: {
-      url: `https://api-eu1.tatum.io/v3/blockchain/node/KLAY/${apiKey}`, // 'https://api.baobab.klaytn.net:8651/',
+      url: 'https://api.baobab.klaytn.net:8651/',
       accounts: { mnemonic, initialIndex: 0 },
       chainId: 1001,
       gas: 8500000,
-      // gasPrice: 25000000000,
+      gasPrice: 750000000000,
     },
   },
   gasReporter: {
