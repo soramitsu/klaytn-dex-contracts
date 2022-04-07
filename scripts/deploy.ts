@@ -6,20 +6,33 @@
 import { ethers } from 'hardhat';
 
 async function main() {
-  // Hardhat always runs the compile task when running scripts with its command
-  // line interface.
-  //
-  // If this script is run directly using `node` you may want to call compile
-  // manually to make sure everything is compiled
-  // await hre.run('compile');
+  const accounts = await ethers.getSigners();
+  const deployer = accounts[0].address;
+  console.log('Sender address: ', deployer);
 
-  // We get the contract to deploy
-  const Greeter = await ethers.getContractFactory('Greeter');
-  const greeter = await Greeter.deploy('Hello, Hardhat!');
+  // Deploy WETH
+  const weth = await ethers.getContractFactory('WETH9');
+  const wethInstance = await weth.deploy();
+  await wethInstance.deployed();
 
-  await greeter.deployed();
+  console.log(`WETH deployed to : ${wethInstance.address}`);
 
-  console.log('Greeter deployed to:', greeter.address);
+  // Deploy Factory
+  const factory = await ethers.getContractFactory('DexFactory');
+  const factoryInstance = await factory.deploy(deployer);
+  await factoryInstance.deployed();
+
+  console.log(`Factory deployed to : ${factoryInstance.address}`);
+
+  // Deploy Router passing Factory Address and WETH Address
+  const router = await ethers.getContractFactory('DexRouter');
+  const routerInstance = await router.deploy(
+    factoryInstance.address,
+    wethInstance.address,
+  );
+  await routerInstance.deployed();
+
+  console.log(`Router V02 deployed to :  ${routerInstance.address}`);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
