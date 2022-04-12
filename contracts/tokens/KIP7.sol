@@ -3,7 +3,7 @@ pragma solidity =0.8.12;
 
 import '../interfaces/IDexKIP7.sol';
 import '../interfaces/IKIPReciever.sol';
-import '../libraries/Address.sol';
+import '../utils/Address.sol';
 import '../utils/KIP13.sol';
 
 contract KIP7 is IKIP7, KIP13 {

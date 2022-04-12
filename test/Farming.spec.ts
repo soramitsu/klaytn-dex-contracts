@@ -19,13 +19,13 @@ describe('Farming', () => {
     const ptnFactory = await ethers.getContractFactory('PlatformToken');
     lpFactory = await ethers.getContractFactory('DexKIP7Test');
     const farmingFactory = await ethers.getContractFactory('Farming');
-    ptn = await ptnFactory.deploy();
-    expect(await ptn.owner()).to.be.equal(minter.address);
+    ptn = await ptnFactory.deploy('PlatformToken', 'PTN', 18);
+    expect(await ptn.hasRole((await ptn.DEFAULT_ADMIN_ROLE()), minter.address)).to.be.equal(true);
     lp1 = await lpFactory.deploy('1000000');
     lp2 = await lpFactory.deploy('1000000');
     lp3 = await lpFactory.deploy('1000000');
     chef = await farmingFactory.deploy(ptn.address, 1000, 100);
-    await ptn.transferOwnership(chef.address);
+    await ptn.grantRole((await ptn.MINTER_ROLE()), chef.address);
     await lp1.transfer(bob.address, '2000');
     await lp2.transfer(bob.address, '2000');
     await lp3.transfer(bob.address, '2000');

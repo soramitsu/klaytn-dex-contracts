@@ -24,21 +24,20 @@ describe('Staking', () => {
   });
 
   beforeEach(async () => {
-    ptn = await PTN.deploy();
+    ptn = await PTN.deploy('Platform Token', 'PTN', 18);
     await ptn.deployed();
   });
 
   it('should set correct state variables', async () => {
     staking = await Staking.deploy(ptn.address, '1000', '0');
     await staking.deployed();
-
-    await ptn.transferOwnership(staking.address);
+    expect(await ptn.hasRole((await ptn.DEFAULT_ADMIN_ROLE()), minter.address)).to.be.equal(true);
+    await ptn.grantRole((await ptn.MINTER_ROLE()), staking.address);
 
     const ptnAddress = await staking.ptn();
-    const owner = await ptn.owner();
 
     expect(ptnAddress).to.equal(ptn.address);
-    expect(owner).to.equal(staking.address);
+    expect(await ptn.hasRole((await ptn.MINTER_ROLE()), staking.address)).to.be.equal(true);
   });
 
   context('With ERC/LP token added to the field', () => {
@@ -82,7 +81,7 @@ describe('Staking', () => {
       // 100 per block staking rate starting at block 100
       staking = await Staking.deploy(ptn.address, '100', '100');
       await staking.deployed();
-      await ptn.transferOwnership(staking.address);
+      await ptn.grantRole((await ptn.MINTER_ROLE()), staking.address);
 
       await staking.add('100', lp.address, true);
 
@@ -119,7 +118,7 @@ describe('Staking', () => {
       staking = await Staking.deploy(ptn.address, '100', '200');
       const lp3 = await KIP7LP.deploy('10000000000');
       await staking.deployed();
-      await ptn.transferOwnership(staking.address);
+      await ptn.grantRole((await ptn.MINTER_ROLE()), staking.address);
       await staking.add('1000', lp.address, true);
       await staking.add('1000', lp2.address, true);
       await staking.add('1000', lp3.address, true);
@@ -144,7 +143,7 @@ describe('Staking', () => {
       // 100 per block staking rate starting at block 300
       staking = await Staking.deploy(ptn.address, '100', '300');
       await staking.deployed();
-      await ptn.transferOwnership(staking.address);
+      await ptn.grantRole((await ptn.MINTER_ROLE()), staking.address);
       await staking.add('100', lp.address, true);
       await lp.connect(alice).approve(staking.address, '1000');
       await lp.connect(bob).approve(staking.address, '1000');
@@ -196,7 +195,7 @@ describe('Staking', () => {
     it('should give proper ptns allocation to each pool', async () => {
       // 100 per block staking rate starting at block 400
       staking = await Staking.deploy(ptn.address, '100', '400');
-      await ptn.transferOwnership(staking.address);
+      await ptn.grantRole((await ptn.MINTER_ROLE()), staking.address);
       await lp.connect(alice).approve(staking.address, '1000');
       await lp2.connect(bob).approve(staking.address, '1000');
       // Add first LP to the pool with allocation 1

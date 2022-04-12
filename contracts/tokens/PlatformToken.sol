@@ -5,9 +5,9 @@ import './KIP7.sol';
 import '../utils/Math.sol';
 import '../utils/SafeCast.sol';
 import '../utils/Context.sol';
-import '../utils/Ownable.sol';
+import '../utils/AccessControl.sol';
 
-contract PlatformToken is KIP7("Platform Token", "PTN", 18), Context, Ownable {
+contract PlatformToken is KIP7, AccessControl {
     struct Checkpoint {
         uint32 fromBlock;
         uint224 votes;
@@ -23,6 +23,8 @@ contract PlatformToken is KIP7("Platform Token", "PTN", 18), Context, Ownable {
     /// @notice The EIP-712 typehash for the delegation struct used by the contract
     bytes32 public constant DELEGATION_TYPEHASH = keccak256("Delegation(address delegatee,uint256 nonce,uint256 expiry)");
 
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
     /// @notice A record of states for signing / validating signatures
     mapping (address => uint) public nonces;
 
@@ -36,6 +38,9 @@ contract PlatformToken is KIP7("Platform Token", "PTN", 18), Context, Ownable {
      */
     event DelegateVotesChanged(address indexed delegate, uint256 previousBalance, uint256 newBalance);
 
+    constructor(string memory _name, string memory _symbol, uint8 _decimals) KIP7(_name, _symbol, _decimals) {
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    }
     /**
      * @dev Get the `pos`-th checkpoint for `account`.
      */
@@ -180,7 +185,7 @@ contract PlatformToken is KIP7("Platform Token", "PTN", 18), Context, Ownable {
     /**
      * @dev Snapshots the totalSupply after it has been increased.
      */
-    function mint(address account, uint256 amount) external onlyOwner {
+    function mint(address account, uint256 amount) external onlyRole(MINTER_ROLE) {
         _mint(account, amount);
         require(totalSupply() <= _maxSupply(), "PTN: total supply risks overflowing votes");
         _writeCheckpoint(_totalSupplyCheckpoints, _add, amount);
@@ -189,7 +194,7 @@ contract PlatformToken is KIP7("Platform Token", "PTN", 18), Context, Ownable {
     /**
      * @dev Snapshots the totalSupply after it has been decreased.
      */
-    function burn(address account, uint256 amount) external onlyOwner {
+    function burn(address account, uint256 amount) external onlyRole(BURNER_ROLE) {
         _burn(account, amount);
         _writeCheckpoint(_totalSupplyCheckpoints, _subtract, amount);
     }

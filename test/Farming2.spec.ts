@@ -24,21 +24,20 @@ describe('Farming2', () => {
   });
 
   beforeEach(async () => {
-    ptn = await PTN.deploy();
+    ptn = await PTN.deploy('Platform Token', 'PTN', 18);
     await ptn.deployed();
   });
 
   it('should set correct state variables', async () => {
     farming = await Farming.deploy(ptn.address, '1000', '0');
     await farming.deployed();
-
-    await ptn.transferOwnership(farming.address);
+    expect(await ptn.hasRole((await ptn.DEFAULT_ADMIN_ROLE()), minter.address)).to.be.equal(true);
+    await ptn.grantRole((await ptn.MINTER_ROLE()), farming.address);
 
     const ptnAddress = await farming.ptn();
-    const owner = await ptn.owner();
 
     expect(ptnAddress).to.equal(ptn.address);
-    expect(owner).to.equal(farming.address);
+    expect(await ptn.hasRole((await ptn.MINTER_ROLE()), farming.address)).to.be.equal(true);
   });
 
   context('With ERC/LP token added to the field', () => {
@@ -82,7 +81,7 @@ describe('Farming2', () => {
       // 100 per block farming rate starting at block 100
       farming = await Farming.deploy(ptn.address, '1000', '100');
       await farming.deployed();
-      await ptn.transferOwnership(farming.address);
+      await ptn.grantRole((await ptn.MINTER_ROLE()), farming.address);
 
       const lp3 = await KIP7LP.deploy('10000000000');
       const lp4 = await KIP7LP.deploy('10000000000');
@@ -135,7 +134,7 @@ describe('Farming2', () => {
       farming = await Farming.deploy(ptn.address, '1000', '200');
       const lp3 = await KIP7LP.deploy('10000000000');
       await farming.deployed();
-      await ptn.transferOwnership(farming.address);
+      await ptn.grantRole((await ptn.MINTER_ROLE()), farming.address);
       await farming.add('1000', lp.address, true);
       await farming.add('1000', lp2.address, true);
       await farming.add('1000', lp3.address, true);
@@ -160,7 +159,7 @@ describe('Farming2', () => {
       // 100 per block farming rate starting at block 300
       farming = await Farming.deploy(ptn.address, '100', '300');
       await farming.deployed();
-      await ptn.transferOwnership(farming.address);
+      await ptn.grantRole((await ptn.MINTER_ROLE()), farming.address);
       await farming.add('100', lp.address, true);
       await lp.connect(alice).approve(farming.address, '1000');
       await lp.connect(bob).approve(farming.address, '1000');
@@ -212,7 +211,7 @@ describe('Farming2', () => {
     it('should give proper ptns allocation to each pool', async () => {
       // 100 per block farming rate starting at block 400
       farming = await Farming.deploy(ptn.address, '100', '400');
-      await ptn.transferOwnership(farming.address);
+      await ptn.grantRole((await ptn.MINTER_ROLE()), farming.address);
       await lp.connect(alice).approve(farming.address, '1000');
       await lp2.connect(bob).approve(farming.address, '1000');
       // Add first LP to the pool with allocation 1

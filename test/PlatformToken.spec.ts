@@ -16,9 +16,9 @@ describe('PlatformToken', () => {
 
   beforeEach(async () => {
     const TokenFactory = await ethers.getContractFactory('PlatformToken');
-    token = await TokenFactory.deploy();
+    token = await TokenFactory.deploy('Platform Token', 'PTN', 18);
+    await token.grantRole((await token.MINTER_ROLE()), alice.address);
     await token.deployed();
-    // chainId = await alice.getChainId();
   });
 
   it('initial nonce is 0', async () => {
@@ -42,7 +42,7 @@ describe('PlatformToken', () => {
     await token.mint(alice.address, '100');
     await token.mint(bob.address, '1000');
     await expect(token.connect(bob).mint(carol.address, '1000', { from: bob.address })).to.be.revertedWith(
-      'Ownable: caller is not the owner',
+      'AccessControl: account 0x70997970c51812dc3a010c7d01b50e0d17dc79c8 is missing role 0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6',
     );
     const totalSupply = await token.totalSupply();
     const aliceBal = await token.balanceOf(alice.address);

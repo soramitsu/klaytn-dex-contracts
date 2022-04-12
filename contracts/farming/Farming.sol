@@ -89,6 +89,13 @@ contract Farming is Ownable {
         BONUS_MULTIPLIER = multiplierNumber;
     }
 
+    function updatePtnPerBlock(uint256 _ptnPerBlock) external onlyOwner {
+        // This MUST be done or pool rewards will be calculated with new boo per second
+        // This could unfairly punish small pools that dont have frequent deposits/withdraws/harvests
+        massUpdatePools(); 
+        ptnPerBlock = _ptnPerBlock;
+    }
+
      // Return reward multiplier over the given _from to _to block.
     function getMultiplier(uint256 _from, uint256 _to) public view returns (uint256) {
         return (_to - _from) * BONUS_MULTIPLIER;
