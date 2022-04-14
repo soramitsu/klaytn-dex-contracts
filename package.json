@@ -22,7 +22,7 @@
     "eslint-plugin-promise": "^5.2.0",
     "ethereum-waffle": "^3.4.4",
     "ethereumjs-util": "^7.1.4",
-    "ethers": "^5.6.2",
+    "ethers": "^5.6.1",
     "hardhat": "^2.9.3",
     "hardhat-gas-reporter": "^1.0.8",
     "solidity-coverage": "^0.7.20",
