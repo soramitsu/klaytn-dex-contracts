@@ -937,7 +937,7 @@ describe('DexRouter fee-on-transfer tokens: reloaded', async () => {
     const fixture = await routerFixture(wallet);
     router = fixture.router02;
 
-    const DTTFactory = await ethers.getContractFactory('KIP7Mock');
+    const DTTFactory = await ethers.getContractFactory('DeflKIP7');
     DTT = await DTTFactory.deploy(ethers.utils.parseEther('10000'));
     DTT2 = await DTTFactory.deploy(ethers.utils.parseEther('10000'));
 

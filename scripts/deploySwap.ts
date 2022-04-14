@@ -32,7 +32,7 @@ async function main() {
   );
   await routerInstance.deployed();
 
-  console.log(`Router V02 deployed to :  ${routerInstance.address}`);
+  console.log(`Router deployed to :  ${routerInstance.address}`);
 }
 
 // We recommend this pattern to be able to use async/await everywhere

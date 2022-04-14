@@ -11,16 +11,16 @@ describe('Staking', () => {
   let carol: SignerWithAddress;
   let Staking: ContractFactory;
   let PTN: ContractFactory;
-  let KIP7LP: ContractFactory;
+  let Token: ContractFactory;
   let ptn: Contract;
   let staking: Contract;
-  let lp: Contract;
-  let lp2: Contract;
+  let token: Contract;
+  let token2: Contract;
   before(async () => {
     [minter, alice, bob, carol] = await ethers.getSigners();
     Staking = await ethers.getContractFactory('Staking');
     PTN = await ethers.getContractFactory('PlatformToken');
-    KIP7LP = await ethers.getContractFactory('KIP7Mock');
+    Token = await ethers.getContractFactory('KIP7Mock');
   });
 
   beforeEach(async () => {
@@ -40,23 +40,23 @@ describe('Staking', () => {
     expect(await ptn.hasRole((await ptn.MINTER_ROLE()), staking.address)).to.be.equal(true);
   });
 
-  context('With ERC/LP token added to the field', () => {
+  context('With ERC/token token added to the field', () => {
     beforeEach(async () => {
-      lp = await KIP7LP.deploy('10000000000');
+      token = await Token.deploy('10000000000');
 
-      await lp.transfer(alice.address, '1000');
+      await token.transfer(alice.address, '1000');
 
-      await lp.transfer(bob.address, '1000');
+      await token.transfer(bob.address, '1000');
 
-      await lp.transfer(carol.address, '1000');
+      await token.transfer(carol.address, '1000');
 
-      lp2 = await KIP7LP.deploy('10000000000');
+      token2 = await Token.deploy('10000000000');
 
-      await lp2.transfer(alice.address, '1000');
+      await token2.transfer(alice.address, '1000');
 
-      await lp2.transfer(bob.address, '1000');
+      await token2.transfer(bob.address, '1000');
 
-      await lp2.transfer(carol.address, '1000');
+      await token2.transfer(carol.address, '1000');
     });
 
     it('should allow emergency withdraw', async () => {
@@ -64,17 +64,17 @@ describe('Staking', () => {
       staking = await Staking.deploy(ptn.address, '100', '100');
       await staking.deployed();
 
-      await staking.add('100', lp.address, true);
+      await staking.add('100', token.address, true);
 
-      await lp.connect(bob).approve(staking.address, '1000');
+      await token.connect(bob).approve(staking.address, '1000');
 
       await staking.connect(bob).deposit(0, '100');
 
-      expect(await lp.balanceOf(bob.address)).to.equal('900');
+      expect(await token.balanceOf(bob.address)).to.equal('900');
 
       await staking.connect(bob).emergencyWithdraw(0);
 
-      expect(await lp.balanceOf(bob.address)).to.equal('1000');
+      expect(await token.balanceOf(bob.address)).to.equal('1000');
     });
 
     it('should give out PTNs only after staking time', async () => {
@@ -83,11 +83,11 @@ describe('Staking', () => {
       await staking.deployed();
       await ptn.grantRole((await ptn.MINTER_ROLE()), staking.address);
 
-      await staking.add('100', lp.address, true);
+      await staking.add('100', token.address, true);
 
       expect(await staking.poolLength()).to.be.equal(1);
 
-      await lp.connect(bob).approve(staking.address, '1000');
+      await token.connect(bob).approve(staking.address, '1000');
       await staking.connect(bob).deposit(0, '20');
       await advanceBlockTo(89);
 
@@ -116,13 +116,13 @@ describe('Staking', () => {
     it('should not distribute ptns if no one deposit', async () => {
       // 100 per block staking rate starting at block 200
       staking = await Staking.deploy(ptn.address, '100', '200');
-      const lp3 = await KIP7LP.deploy('10000000000');
+      const token3 = await Token.deploy('10000000000');
       await staking.deployed();
       await ptn.grantRole((await ptn.MINTER_ROLE()), staking.address);
-      await staking.add('1000', lp.address, true);
-      await staking.add('1000', lp2.address, true);
-      await staking.add('1000', lp3.address, true);
-      await lp.connect(bob).approve(staking.address, '1000');
+      await staking.add('1000', token.address, true);
+      await staking.add('1000', token2.address, true);
+      await staking.add('1000', token3.address, true);
+      await token.connect(bob).approve(staking.address, '1000');
       await advanceBlockTo(199);
       expect(await ptn.totalSupply()).to.equal('0');
       await advanceBlockTo(204);
@@ -131,12 +131,12 @@ describe('Staking', () => {
       await staking.connect(bob).deposit(0, '20'); // block 210
       expect(await ptn.totalSupply()).to.equal('0');
       expect(await ptn.balanceOf(bob.address)).to.equal('0');
-      expect(await lp.balanceOf(bob.address)).to.equal('980');
+      expect(await token.balanceOf(bob.address)).to.equal('980');
       await advanceBlockTo(219);
       await staking.connect(bob).withdraw(0, '10'); // block 220
       expect(await ptn.totalSupply()).to.equal('3333');
       expect(await ptn.balanceOf(bob.address)).to.equal('3333');
-      expect(await lp.balanceOf(bob.address)).to.equal('990');
+      expect(await token.balanceOf(bob.address)).to.equal('990');
     });
 
     it('should distribute ptns properly for each staker', async () => {
@@ -144,20 +144,20 @@ describe('Staking', () => {
       staking = await Staking.deploy(ptn.address, '100', '300');
       await staking.deployed();
       await ptn.grantRole((await ptn.MINTER_ROLE()), staking.address);
-      await staking.add('100', lp.address, true);
-      await lp.connect(alice).approve(staking.address, '1000');
-      await lp.connect(bob).approve(staking.address, '1000');
-      await lp.connect(carol).approve(staking.address, '1000');
-      // Alice deposits 10 LPs at block 310
+      await staking.add('100', token.address, true);
+      await token.connect(alice).approve(staking.address, '1000');
+      await token.connect(bob).approve(staking.address, '1000');
+      await token.connect(carol).approve(staking.address, '1000');
+      // Alice deposits 10 tokens at block 310
       await advanceBlockTo(309);
       await staking.connect(alice).deposit(0, '10');
-      // Bob deposits 20 LPs at block 314
+      // Bob deposits 20 tokens at block 314
       await advanceBlockTo(313);
       await staking.connect(bob).deposit(0, '20');
-      // Carol deposits 30 LPs at block 318
+      // Carol deposits 30 tokens at block 318
       await advanceBlockTo(317);
       await staking.connect(carol).deposit(0, '30');
-      // Alice deposits 10 more LPs at block 320. At this point:
+      // Alice deposits 10 more tokens at block 320. At this point:
       await advanceBlockTo(319);
       await staking.connect(alice).deposit(0, '10');
       expect(await ptn.totalSupply()).to.equal('10000');
@@ -165,7 +165,7 @@ describe('Staking', () => {
       expect(await ptn.balanceOf(bob.address)).to.equal('0');
       expect(await ptn.balanceOf(carol.address)).to.equal('0');
       expect(await ptn.balanceOf(staking.address)).to.equal('4334');
-      // Bob withdraws 5 LPs at block 330. At this point:
+      // Bob withdraws 5 tokens at block 330. At this point:
       await advanceBlockTo(329);
       await staking.connect(bob).withdraw(0, '5', { from: bob.address });
       expect(await ptn.totalSupply()).to.equal('20000');
@@ -173,9 +173,9 @@ describe('Staking', () => {
       expect(await ptn.balanceOf(bob.address)).to.equal('6190');
       expect(await ptn.balanceOf(carol.address)).to.equal('0');
       expect(await ptn.balanceOf(staking.address)).to.equal('8144');
-      // Alice withdraws 20 LPs at block 340.
-      // Bob withdraws 15 LPs at block 350.
-      // Carol withdraws 30 LPs at block 360.
+      // Alice withdraws 20 tokens at block 340.
+      // Bob withdraws 15 tokens at block 350.
+      // Carol withdraws 30 tokens at block 360.
       await advanceBlockTo(339);
       await staking.connect(alice).withdraw(0, '20');
       await advanceBlockTo(349);
@@ -186,29 +186,29 @@ describe('Staking', () => {
       expect(await ptn.balanceOf(alice.address)).to.equal('11600');
       expect(await ptn.balanceOf(bob.address)).to.equal('11831');
       expect(await ptn.balanceOf(carol.address)).to.equal('26568');
-      // All of them should have 1000 LPs back.
-      expect(await lp.balanceOf(alice.address)).to.equal('1000');
-      expect(await lp.balanceOf(bob.address)).to.equal('1000');
-      expect(await lp.balanceOf(carol.address)).to.equal('1000');
+      // All of them should have 1000 tokens back.
+      expect(await token.balanceOf(alice.address)).to.equal('1000');
+      expect(await token.balanceOf(bob.address)).to.equal('1000');
+      expect(await token.balanceOf(carol.address)).to.equal('1000');
     });
 
     it('should give proper ptns allocation to each pool', async () => {
       // 100 per block staking rate starting at block 400
       staking = await Staking.deploy(ptn.address, '100', '400');
       await ptn.grantRole((await ptn.MINTER_ROLE()), staking.address);
-      await lp.connect(alice).approve(staking.address, '1000');
-      await lp2.connect(bob).approve(staking.address, '1000');
-      // Add first LP to the pool with allocation 1
-      await staking.add('10', lp.address, true);
-      // Alice deposits 10 LPs at block 410
+      await token.connect(alice).approve(staking.address, '1000');
+      await token2.connect(bob).approve(staking.address, '1000');
+      // Add first token to the pool with allocation 1
+      await staking.add('10', token.address, true);
+      // Alice deposits 10 tokens at block 410
       await advanceBlockTo(409);
       await staking.connect(alice).deposit(0, '10');
-      // Add LP2 to the pool with allocation 2 at block 420
+      // Add token2 to the pool with allocation 2 at block 420
       await advanceBlockTo(419);
-      await staking.add('20', lp2.address, true);
+      await staking.add('20', token2.address, true);
       // Alice should have 10*1000 pending reward
       expect(await staking.pendingPtn(0, alice.address)).to.equal('10000');
-      // Bob deposits 10 LP2s at block 425
+      // Bob deposits 10 token2s at block 425
       await advanceBlockTo(424);
       await staking.connect(bob).deposit(1, '5');
       // Alice should have 10000 + 5*1/3*1000 = 11666 pending reward
