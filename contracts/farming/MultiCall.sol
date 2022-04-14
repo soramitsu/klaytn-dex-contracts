@@ -12,16 +12,17 @@ contract Multicall {
         bytes returnData;
     }
 
-    function aggregate(Call[] memory calls) public view returns (uint256 blockNumber, bytes[] memory returnData) {
+    function aggregate(Call[] memory calls) public returns (uint256 blockNumber, bytes[] memory returnData) {
         blockNumber = block.number;
-        returnData = new bytes[](calls.length);
-        for(uint256 i = 0; i < calls.length; i++) {
-            (bool success, bytes memory ret) = calls[i].target.staticcall(calls[i].callData);
+        uint256 length = calls.length;
+        returnData = new bytes[](length);
+        for(uint256 i = 0; i < length; i++) {
+            (bool success, bytes memory ret) = calls[i].target.call(calls[i].callData);
             require(success, "Multicall aggregate: call failed");
             returnData[i] = ret;
         }
     }
-    function blockAndAggregate(Call[] memory calls) public view returns (uint256 blockNumber, bytes32 blockHash, Result[] memory returnData) {
+    function blockAndAggregate(Call[] memory calls) public returns (uint256 blockNumber, bytes32 blockHash, Result[] memory returnData) {
         (blockNumber, blockHash, returnData) = tryBlockAndAggregate(true, calls);
     }
     function getBlockHash(uint256 blockNumber) public view returns (bytes32 blockHash) {
@@ -48,10 +49,11 @@ contract Multicall {
     function getLastBlockHash() public view returns (bytes32 blockHash) {
         blockHash = blockhash(block.number - 1);
     }
-    function tryAggregate(bool requireSuccess, Call[] memory calls) public view returns (Result[] memory returnData) {
-        returnData = new Result[](calls.length);
-        for(uint256 i = 0; i < calls.length; i++) {
-            (bool success, bytes memory ret) = calls[i].target.staticcall(calls[i].callData);
+    function tryAggregate(bool requireSuccess, Call[] memory calls) public returns (Result[] memory returnData) {
+        uint256 length = calls.length;
+        returnData = new Result[](length);
+        for(uint256 i = 0; i < length; i++) {
+            (bool success, bytes memory ret) = calls[i].target.call(calls[i].callData);
 
             if (requireSuccess) {
                 require(success, "Multicall aggregate: call failed");
@@ -60,7 +62,7 @@ contract Multicall {
             returnData[i] = Result(success, ret);
         }
     }
-    function tryBlockAndAggregate(bool requireSuccess, Call[] memory calls) public view returns (uint256 blockNumber, bytes32 blockHash, Result[] memory returnData) {
+    function tryBlockAndAggregate(bool requireSuccess, Call[] memory calls) public returns (uint256 blockNumber, bytes32 blockHash, Result[] memory returnData) {
         blockNumber = block.number;
         blockHash = blockhash(block.number);
         returnData = tryAggregate(requireSuccess, calls);
