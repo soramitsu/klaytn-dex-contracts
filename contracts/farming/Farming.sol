@@ -5,8 +5,9 @@ import "../interfaces/IKIP7.sol";
 import "../tokens/PlatformToken.sol";
 import "../utils/Ownable.sol";
 import '../utils/SafeCast.sol';
+import "../utils/ReentrancyGuard.sol";
 
-contract Farming is Ownable {
+contract Farming is Ownable, ReentrancyGuard{
     // Info of each user.
     using SafeCast for uint256;
     struct UserInfo {
@@ -170,7 +171,7 @@ contract Farming is Ownable {
     }
 
     // Deposit LP tokens to Farming Contract for PTN allocation.
-    function deposit(uint256 _pid, uint256 _amount) public {
+    function deposit(uint256 _pid, uint256 _amount) external nonReentrant {
 
         require (_pid != 0, 'deposit PTN by staking');
 
@@ -194,7 +195,7 @@ contract Farming is Ownable {
     }
 
     // Withdraw LP tokens from Farming Contract.
-    function withdraw(uint256 _pid, uint256 _amount) public {
+    function withdraw(uint256 _pid, uint256 _amount) external nonReentrant {
 
         require (_pid != 0, 'withdraw PTN by unstaking');
         PoolInfo storage pool = poolInfo[_pid];
@@ -216,7 +217,7 @@ contract Farming is Ownable {
     }
 
     // Stake PTN tokens to Farming Contract
-    function enterStaking(uint256 _amount) public {
+    function enterStaking(uint256 _amount) external nonReentrant {
         PoolInfo storage pool = poolInfo[0];
         UserInfo storage user = userInfo[0][msg.sender];
         updatePool(0);
@@ -236,7 +237,7 @@ contract Farming is Ownable {
     }
 
     // Withdraw PTN tokens from Farming Contract.
-    function leaveStaking(uint256 _amount) public {
+    function leaveStaking(uint256 _amount) external nonReentrant {
         PoolInfo storage pool = poolInfo[0];
         UserInfo storage user = userInfo[0][msg.sender];
         require(user.amount >= _amount, "withdraw: not good");
@@ -264,7 +265,7 @@ contract Farming is Ownable {
         }
     }
     // Withdraw without caring about rewards. EMERGENCY ONLY.
-    function emergencyWithdraw(uint256 _pid) public {
+    function emergencyWithdraw(uint256 _pid) public nonReentrant {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
 

@@ -6,8 +6,9 @@ import "../libraries/TransferHelper.sol";
 import "../tokens/PlatformToken.sol";
 import "../utils/Ownable.sol";
 import '../utils/SafeCast.sol';
+import "../utils/ReentrancyGuard.sol";
 
-contract Staking is Ownable {
+contract Staking is Ownable, ReentrancyGuard {
     // Info of each user.
     using SafeCast for uint256;
     struct UserInfo {
@@ -146,7 +147,7 @@ contract Staking is Ownable {
     }
 
     // Deposit LP tokens to Farming Contract for PTN allocation.
-    function deposit(uint256 _pid, uint256 _amount) public {
+    function deposit(uint256 _pid, uint256 _amount) external nonReentrant {
 
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
@@ -167,7 +168,7 @@ contract Staking is Ownable {
     }
 
     // Withdraw LP tokens from Farming Contract.
-    function withdraw(uint256 _pid, uint256 _amount) public {
+    function withdraw(uint256 _pid, uint256 _amount) external nonReentrant {
 
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
@@ -198,7 +199,7 @@ contract Staking is Ownable {
         }
     }
     // Withdraw without caring about rewards. EMERGENCY ONLY.
-    function emergencyWithdraw(uint256 _pid) public {
+    function emergencyWithdraw(uint256 _pid) public nonReentrant {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
 
