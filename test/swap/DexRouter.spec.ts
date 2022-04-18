@@ -30,8 +30,8 @@ describe('DexRouter', () => {
     const fixture = await routerFixture(wallet);
     token0 = fixture.token0;
     token1 = fixture.token1;
-    router = fixture.router02;
-    factory = fixture.factoryV2;
+    router = fixture.router;
+    factory = fixture.factory;
     pair = fixture.pair;
     WKLAY = fixture.WKLAY;
     WKLAYPair = fixture.WKLAYPair;
@@ -747,8 +747,8 @@ describe('DexRouter fee-on-transfer tokens', async () => {
     const fixture = await routerFixture(wallet);
 
     WKLAY = fixture.WKLAY;
-    router = fixture.router02;
-    factoryV2 = fixture.factoryV2;
+    router = fixture.router;
+    factoryV2 = fixture.factory;
 
     const DTTFactory = await ethers.getContractFactory('DeflKIP7');
     DTT = await DTTFactory.deploy(ethers.utils.parseEther('10000'));
@@ -935,15 +935,15 @@ describe('DexRouter fee-on-transfer tokens: reloaded', async () => {
   beforeEach(async () => {
     [wallet] = await ethers.getSigners();
     const fixture = await routerFixture(wallet);
-    router = fixture.router02;
+    router = fixture.router;
 
     const DTTFactory = await ethers.getContractFactory('DeflKIP7');
     DTT = await DTTFactory.deploy(ethers.utils.parseEther('10000'));
     DTT2 = await DTTFactory.deploy(ethers.utils.parseEther('10000'));
 
     // make a DTT<>WKLAY pair
-    await fixture.factoryV2.createPair(DTT.address, DTT2.address);
-    const pairAddress = await fixture.factoryV2.getPair(DTT.address, DTT2.address);
+    await fixture.factory.createPair(DTT.address, DTT2.address);
+    const pairAddress = await fixture.factory.getPair(DTT.address, DTT2.address);
     console.log(pairAddress);
   });
 

@@ -22,10 +22,10 @@ describe('DexComputeLiquidityValue', () => {
     token0 = fixture.token0;
     token1 = fixture.token1;
     pair = fixture.pair;
-    factory = fixture.factoryV2;
+    factory = fixture.factory;
     router = fixture.router;
     const computeLiquidityValueFactory = await ethers.getContractFactory('ExampleComputeLiquidityValue');
-    computeLiquidityValue = await computeLiquidityValueFactory.deploy(fixture.factoryV2.address);
+    computeLiquidityValue = await computeLiquidityValueFactory.deploy(fixture.factory.address);
   });
 
   beforeEach('mint some liquidity for the pair at 1:100 (100 shares minted)', async () => {

@@ -18,8 +18,7 @@ interface RouterFixture {
   token1: Contract
   WKLAY: Contract
   WKLAYPartner: Contract
-  factoryV2: Contract
-  router02: Contract
+  factory: Contract
   router: Contract
   pair: Contract
   WKLAYPair: Contract
@@ -28,7 +27,6 @@ interface RouterFixture {
 export async function factoryFixture(deployer: SignerWithAddress): Promise<Contract> {
   const Factory = await ethers.getContractFactory('DexFactory');
   const factory = await Factory.deploy(await deployer.getAddress());
-  // const factory = await deployContract(wallet, UniswapV2Factory, [wallet.address], overrides);
   return factory;
 }
 
@@ -61,25 +59,24 @@ export async function routerFixture(deployer: SignerWithAddress): Promise<Router
   const WKLAY = await WKLAY9Factory.deploy();
   const WKLAYPartner = await tokenFactory.deploy(ethers.utils.parseEther('10000'));
 
-  // deploy V2
-  const Factory = await ethers.getContractFactory('DexFactory');
-  const factoryV2 = await Factory.deploy(await deployer.getAddress());
+  // deploy factory
+  const factory = await factoryFixture(deployer);
 
   // deploy router
   const routerFactory = await ethers.getContractFactory('DexRouter');
-  const router02 = await routerFactory.deploy(factoryV2.address, WKLAY.address);
+  const router = await routerFactory.deploy(factory.address, WKLAY.address);
 
-  // initialize V2
-  await factoryV2.createPair(tokenA.address, tokenB.address);
-  const pairAddress = await factoryV2.getPair(tokenA.address, tokenB.address);
+  // initialize pair
+  await factory.createPair(tokenA.address, tokenB.address);
+  const pairAddress = await factory.getPair(tokenA.address, tokenB.address);
   const pair = await ethers.getContractAt('DexPair', pairAddress);
 
   const token0Address = await pair.token0();
   const token0 = tokenA.address === token0Address ? tokenA : tokenB;
   const token1 = tokenA.address === token0Address ? tokenB : tokenA;
 
-  await factoryV2.createPair(WKLAY.address, WKLAYPartner.address);
-  const WKLAYPairAddress = await factoryV2.getPair(WKLAY.address, WKLAYPartner.address);
+  await factory.createPair(WKLAY.address, WKLAYPartner.address);
+  const WKLAYPairAddress = await factory.getPair(WKLAY.address, WKLAYPartner.address);
   const WKLAYPair = await ethers.getContractAt('DexPair', WKLAYPairAddress);
 
   return {
@@ -87,9 +84,8 @@ export async function routerFixture(deployer: SignerWithAddress): Promise<Router
     token1,
     WKLAY,
     WKLAYPartner,
-    factoryV2,
-    router02,
-    router: router02, // the default router, 01 had a minor bug
+    factory,
+    router, // the default router, 01 had a minor bug
     pair,
     WKLAYPair,
   };
