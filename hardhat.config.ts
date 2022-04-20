@@ -45,7 +45,7 @@ const config: HardhatUserConfig = {
   networks: {
     // hardhat: {
     //   forking: {
-    //     url: `https://api-eu1.tatum.io/v3/blockchain/node/KLAY/${apiKey}`,
+    //     url: 'https://api.baobab.klaytn.net:8651/',
     //   },
     // },
     baobab: {
@@ -59,7 +59,7 @@ const config: HardhatUserConfig = {
   gasReporter: {
     enabled: process.env.REPORT_GAS !== undefined,
     currency: 'USD',
-    gasPrice: 25,
+    gasPrice: 750,
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,

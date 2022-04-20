@@ -14,8 +14,7 @@ async function main() {
   const Token = await ethers.getContractFactory('TestToken');
   const tokenInstance = await Token.deploy('Name', 'Symbol', 18, ethers.utils.parseEther('100000000'));
   await tokenInstance.deployed();
-
-  console.log(`MultiCall deployed to : ${tokenInstance.address}`);
+  console.log(`Token deployed to : ${tokenInstance.address}`);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
