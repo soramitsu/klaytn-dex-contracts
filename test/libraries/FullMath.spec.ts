@@ -1,9 +1,6 @@
-import chai, { expect } from 'chai';
+import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { Contract, BigNumber } from 'ethers';
-import { solidity } from 'ethereum-waffle';
-
-chai.use(solidity);
 
 describe('FullMath', () => {
   let fm: Contract;

@@ -1,13 +1,9 @@
-import chai, { expect } from 'chai';
+import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { Contract, constants } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { solidity } from 'ethereum-waffle';
-
 import { getCreate2Address } from '../shared/utilities';
 import { factoryFixture } from '../shared/fixtures';
-
-chai.use(solidity);
 
 const TEST_ADDRESSES: [string, string] = [
   '0x1000000000000000000000000000000000000000',

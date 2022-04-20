@@ -1,13 +1,10 @@
-import chai, { expect } from 'chai';
+import { expect } from 'chai';
 import { Contract } from 'ethers';
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { solidity } from 'ethereum-waffle';
 
 import { mineBlock, encodePrice } from '../shared/utilities';
 import { pairFixture } from '../shared/fixtures';
-
-chai.use(solidity);
 
 const token0Amount = ethers.utils.parseEther('5');
 const token1Amount = ethers.utils.parseEther('10');

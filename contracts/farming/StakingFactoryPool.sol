@@ -126,9 +126,6 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
      */
     function deposit(uint256 _amount) external nonReentrant {
         UserInfo storage user = userInfo[msg.sender];
-
-        // Checks whether the user has an active profile
-
         userLimit = hasUserLimit();
 
         require(!userLimit || ((_amount + user.amount) <= poolLimitPerUser), "Deposit: Amount above limit");

@@ -1,10 +1,7 @@
 /* eslint-disable no-unused-expressions */
-import chai, { expect } from 'chai';
+import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { Contract, BigNumber } from 'ethers';
-import { solidity } from 'ethereum-waffle';
-
-chai.use(solidity);
 
 const Q112 = BigNumber.from(2).pow(112);
 

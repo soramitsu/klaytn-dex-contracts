@@ -1,13 +1,10 @@
-import chai, { expect } from 'chai';
+import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { Contract, BigNumber, constants } from 'ethers';
-import { solidity } from 'ethereum-waffle';
-
-chai.use(solidity);
-
-let babylonian: Contract;
 
 describe('Babylonian', async () => {
+  let babylonian: Contract;
+
   before('deploy BabylonianTest', async () => {
     const babylonianFactoty = await ethers.getContractFactory('BabylonianTest');
     babylonian = await babylonianFactoty.deploy();

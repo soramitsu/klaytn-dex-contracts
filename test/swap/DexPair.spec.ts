@@ -1,14 +1,11 @@
-import chai, { expect } from 'chai';
+import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { Contract, BigNumber, constants } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { solidity } from 'ethereum-waffle';
 import { encodePrice, mineBlock } from '../shared/utilities';
 import { pairFixture } from '../shared/fixtures';
 
 const MINIMUM_LIQUIDITY = BigNumber.from(10).pow(3);
-
-chai.use(solidity);
 
 describe('DexPair', () => {
   let wallet: SignerWithAddress;

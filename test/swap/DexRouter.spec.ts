@@ -1,5 +1,4 @@
-import chai, { expect } from 'chai';
-import { solidity } from 'ethereum-waffle';
+import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import * as dotenv from 'dotenv';
 import { Contract, BigNumber, constants } from 'ethers';
@@ -9,7 +8,6 @@ import { ecsign } from 'ethereumjs-util';
 import { routerFixture } from '../shared/fixtures';
 import { getApprovalDigest, mineBlock } from '../shared/utilities';
 
-chai.use(solidity);
 dotenv.config();
 
 const MINIMUM_LIQUIDITY = BigNumber.from(10).pow(3);
