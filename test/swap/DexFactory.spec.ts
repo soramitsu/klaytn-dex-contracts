@@ -34,9 +34,9 @@ describe('DexFactory', () => {
       .withArgs(TEST_ADDRESSES[0], TEST_ADDRESSES[1], create2Address, 1);
 
     await expect(factory.createPair(...tokens)).to.be
-      .revertedWith('InvalidAddressParameters("DEX: PAIR_EXISTS")'); // UniswapV2: PAIR_EXISTS
+      .revertedWith('InvalidAddressParameters("DEX: PAIR_EXISTS")'); // DEX: PAIR_EXISTS
     await expect(factory.createPair(...tokens.slice()
-      .reverse())).to.be.revertedWith('InvalidAddressParameters("DEX: PAIR_EXISTS")'); // UniswapV2: PAIR_EXISTS
+      .reverse())).to.be.revertedWith('InvalidAddressParameters("DEX: PAIR_EXISTS")'); // DEX: PAIR_EXISTS
     expect(await factory.getPair(...tokens)).to.eq(create2Address);
     expect(await factory.getPair(...tokens.slice().reverse())).to.eq(create2Address);
     expect(await factory.allPairs(0)).to.eq(create2Address);
@@ -54,6 +54,20 @@ describe('DexFactory', () => {
 
   it('createPair:reverse', async () => {
     await createPair(TEST_ADDRESSES.slice().reverse() as [string, string]);
+  });
+
+  it('createPair:identical', async () => {
+    await expect(createPair([TEST_ADDRESSES[0], TEST_ADDRESSES[0]] as [string, string])).to.be
+      .revertedWith('InvalidAddressParameters("DEX: IDENTICAL_ADDRESSES")');
+  });
+
+  it('createPair:zero address', async () => {
+    await expect(createPair([constants.AddressZero, TEST_ADDRESSES[0]] as [string, string])).to.be
+      .revertedWith('InvalidAddressParameters("DEX: ZERO_ADDRESS")');
+    await expect(createPair([TEST_ADDRESSES[0], constants.AddressZero] as [string, string])).to.be
+      .revertedWith('InvalidAddressParameters("DEX: ZERO_ADDRESS")');
+    await expect(createPair([constants.AddressZero, constants.AddressZero] as [string, string]))
+      .to.be.revertedWith('InvalidAddressParameters("DEX: IDENTICAL_ADDRESSES")');
   });
 
   it('createPair:gas [ @skip-on-coverage ]', async () => {

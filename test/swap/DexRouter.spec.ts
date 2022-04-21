@@ -183,6 +183,48 @@ describe('DexRouter', () => {
     expect(await pair.balanceOf(wallet.address)).to.eq(expectedLiquidity.sub(MINIMUM_LIQUIDITY));
   });
 
+  it('addLiquidity:fail', async () => {
+    const token0Amount = ethers.utils.parseEther('1');
+    const token1Amount = ethers.utils.parseEther('4');
+
+    await token0.approve(router.address, constants.MaxUint256);
+    await token1.approve(router.address, constants.MaxUint256);
+    await router.addLiquidity(
+      token0.address,
+      token1.address,
+      token0Amount,
+      token1Amount,
+      0,
+      0,
+      wallet.address,
+      constants.MaxUint256,
+    );
+    await expect(
+      router.addLiquidity(
+        token0.address,
+        token1.address,
+        10,
+        10,
+        token0Amount,
+        token1Amount,
+        wallet.address,
+        constants.MaxUint256,
+      ),
+    ).to.be.revertedWith('InsufficientAmount("DexRouter: INSUFFICIENT_A_AMOUNT")');
+    await expect(
+      router.addLiquidity(
+        token0.address,
+        token1.address,
+        10,
+        token1Amount,
+        token0Amount,
+        token1Amount,
+        wallet.address,
+        constants.MaxUint256,
+      ),
+    ).to.be.revertedWith('InsufficientAmount("DexRouter: INSUFFICIENT_B_AMOUNT")');
+  });
+
   it('addLiquidityETH', async () => {
     const WKLAYPartnerAmount = ethers.utils.parseEther('1');
     const ETHAmount = ethers.utils.parseEther('4');
@@ -530,6 +572,17 @@ describe('DexRouter', () => {
       ).to.be.revertedWith('InvalidPath()');
       await expect(
         router.swapExactETHForTokens(
+          swapAmount,
+          [WKLAY.address, WKLAYPartner.address],
+          wallet.address,
+          constants.MaxUint256,
+          {
+            value: 1,
+          },
+        ),
+      ).to.be.revertedWith('InsufficientAmount("DexRouter: INSUFFICIENT_OUTPUT_AMOUNT")');
+      await expect(
+        router.swapExactETHForTokens(
           0,
           [WKLAY.address, WKLAYPartner.address],
           wallet.address,
@@ -588,7 +641,7 @@ describe('DexRouter', () => {
         },
       );
       const receipt = await tx.wait();
-      expect(receipt.gasUsed).to.eq(104259);
+      expect(receipt.gasUsed).to.eq(104341);
     }).retries(3);
   });
 

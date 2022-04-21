@@ -283,4 +283,67 @@ describe('DexPair', () => {
     expect(await token0.balanceOf(pair.address)).to.eq('249501683698445');
     expect(await token1.balanceOf(pair.address)).to.eq('250000187313969');
   });
+
+  it('skim', async () => {
+    const token0Amount = ethers.utils.parseEther('5');
+    const token1Amount = ethers.utils.parseEther('10');
+    await addLiquidity(token0Amount, token1Amount);
+
+    const swapAmount = ethers.utils.parseEther('1');
+    const expectedOutputAmount = BigNumber.from('1662497915624478906');
+    await token0.transfer(pair.address, swapAmount);
+    await pair.swap(0, expectedOutputAmount, wallet.address, '0x');
+    const reserves = await pair.getReserves();
+    await pair.skim(wallet.address);
+    expect(reserves[0]).to.eq(token0Amount.add(swapAmount));
+    expect(reserves[1]).to.eq(token1Amount.sub(expectedOutputAmount));
+    expect(await token0.balanceOf(pair.address)).to.eq(token0Amount.add(swapAmount));
+    expect(await token1.balanceOf(pair.address)).to.eq(token1Amount.sub(expectedOutputAmount));
+    const totalSupplyToken0 = await token0.totalSupply();
+    const totalSupplyToken1 = await token1.totalSupply();
+    expect(await token0.balanceOf(wallet.address))
+      .to.eq(totalSupplyToken0.sub(token0Amount).sub(swapAmount));
+    expect(await token1.balanceOf(wallet.address))
+      .to.eq(totalSupplyToken1.sub(token1Amount).add(expectedOutputAmount));
+  });
+
+  it('swap fail', async () => {
+    const token0Amount = ethers.utils.parseEther('1000');
+    const token1Amount = ethers.utils.parseEther('1000');
+    await addLiquidity(token0Amount, token1Amount);
+    const swapAmount = ethers.utils.parseEther('1');
+    const expectedOutputAmount = BigNumber.from('1662497915624478906');
+    await token0.transfer(pair.address, swapAmount);
+    await token1.transfer(pair.address, swapAmount);
+    await expect(pair.swap(0, expectedOutputAmount, token0.address, '0x'))
+      .to.be.revertedWith('InvalidAddressParameters("DEX: INVALID_TO")');
+    await expect(pair.swap(0, 0, wallet.address, '0x'))
+      .to.be.revertedWith('InsufficientAmount("DEX: INSUFFICIENT_OUTPUT_AMOUNT")');
+    await expect(pair.swap(ethers.utils.parseEther('2000'), 0, wallet.address, '0x'))
+      .to.be.revertedWith('InsufficientLiquidity("DEX: INSUFFICIENT_LIQUIDITY")');
+    await expect(pair.swap(0, expectedOutputAmount, wallet.address, '0xabcdef'))
+      .to.be.revertedWith('Transaction reverted: function call to a non-contract account');
+    await expect(pair.swap(0, expectedOutputAmount, pair.address, '0xabcdef'))
+      .to.be.revertedWith("Transaction reverted: function selector was not recognized and there's no fallback function");
+  });
+
+  it('mint fail', async () => {
+    const token0Amount = ethers.utils.parseEther('1000');
+    const token1Amount = ethers.utils.parseEther('1000');
+    await addLiquidity(token0Amount, token1Amount);
+    await expect(pair.mint(wallet.address))
+      .to.be.revertedWith('InsufficientLiquidity("DEX: INSUFFICIENT_LIQUIDITY_MINTED")');
+  });
+
+  it('burn fail', async () => {
+    const token0Amount = ethers.utils.parseEther('1000');
+    const token1Amount = ethers.utils.parseEther('1000');
+    await addLiquidity(token0Amount, token1Amount);
+    await expect(pair.burn(wallet.address))
+      .to.be.revertedWith('InsufficientLiquidity("DEX: INSUFFICIENT_LIQUIDITY_BURNED")');
+  });
+
+  it('init fail', async () => {
+    await expect(pair.initialize(token0.address, token1.address)).to.be.revertedWith('Unauthorized()');
+  });
 });

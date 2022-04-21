@@ -8,6 +8,7 @@ import {
 import { constants, Contract, ContractFactory } from 'ethers';
 import { ecsign } from 'ethereumjs-util';
 import { getApprovalDigest } from '../shared/utilities';
+import { factoryFixture } from '../shared/fixtures';
 
 dotenv.config();
 
@@ -68,6 +69,14 @@ describe('DexKIP7', () => {
     expect(await token.balanceOf(other.address)).to.eq(TEST_AMOUNT);
   });
 
+  it('safeTransfer:fail', async () => {
+    await expect(token['safeTransfer(address,uint256)'](constants.AddressZero, TEST_AMOUNT))
+      .to.be.revertedWith('KIP7: transfer to the zero address');
+    const factory = await factoryFixture(wallet);
+    await expect(token['safeTransfer(address,uint256)'](factory.address, TEST_AMOUNT))
+      .to.be.revertedWith("Transaction reverted: function selector was not recognized and there's no fallback function");
+  });
+
   it('transfer:fail', async () => {
     await expect(token.transfer(
       other.address,
@@ -95,6 +104,15 @@ describe('DexKIP7', () => {
     expect(await token.allowance(wallet.address, other.address)).to.eq(constants.MaxUint256);
     expect(await token.balanceOf(wallet.address)).to.eq(TOTAL_SUPPLY.sub(TEST_AMOUNT));
     expect(await token.balanceOf(other.address)).to.eq(TEST_AMOUNT);
+  });
+
+  it('safeTransferFrom:fail', async () => {
+    await expect(token['safeTransferFrom(address,address,uint256)'](wallet.address, other.address, TEST_AMOUNT))
+      .to.be.revertedWith('KIP7: insufficient allowance');
+    await expect(token['safeTransferFrom(address,address,uint256)'](constants.AddressZero, other.address, TEST_AMOUNT))
+      .to.be.revertedWith('KIP7: transfer from the zero address');
+    await expect(token['safeTransferFrom(address,address,uint256)'](wallet.address, constants.AddressZero, TEST_AMOUNT))
+      .to.be.revertedWith('KIP7: transfer to the zero address');
   });
 
   it('permit', async () => {
@@ -126,5 +144,60 @@ describe('DexKIP7', () => {
       .withArgs(wallet.address, other.address, TEST_AMOUNT);
     expect(await token.allowance(wallet.address, other.address)).to.eq(TEST_AMOUNT);
     expect(await token.nonces(wallet.address)).to.eq(1);
+  });
+
+  it('permit:fail expired', async () => {
+    const nonce = await token.nonces(wallet.address);
+    const blockNumBefore = await ethers.provider.getBlockNumber();
+    const deadline = (await ethers.provider.getBlock(blockNumBefore)).timestamp - 1;
+    const digest = await getApprovalDigest(
+      token,
+      { owner: wallet.address, spender: other.address, value: TEST_AMOUNT },
+      nonce,
+      deadline,
+      31337,
+    );
+    const signer = new ethers.Wallet(process.env.HH_PIVATE_KEY as string);
+    const { v, r, s } = ecsign(
+      Buffer.from(digest.slice(2), 'hex'),
+      Buffer.from(signer.privateKey.slice(2), 'hex'),
+    );
+    // 0xFe22AB221aDD716D6CBB1a153E6f20B30F9cde69
+    await expect(token.permit(
+      wallet.address,
+      other.address,
+      TEST_AMOUNT,
+      deadline,
+      v,
+      hexlify(r),
+      hexlify(s),
+    )).to.be.revertedWith('DEX: EXPIRED');
+  });
+
+  it('permit:fail invalid signature', async () => {
+    const nonce = await token.nonces(wallet.address);
+    const deadline = constants.MaxUint256;
+    const digest = await getApprovalDigest(
+      token,
+      { owner: wallet.address, spender: other.address, value: TEST_AMOUNT },
+      nonce,
+      deadline,
+      31335,
+    );
+    const signer = new ethers.Wallet(process.env.HH_PIVATE_KEY as string);
+    const { v, r, s } = ecsign(
+      Buffer.from(digest.slice(2), 'hex'),
+      Buffer.from(signer.privateKey.slice(2), 'hex'),
+    );
+    // 0xFe22AB221aDD716D6CBB1a153E6f20B30F9cde69
+    await expect(token.permit(
+      wallet.address,
+      other.address,
+      TEST_AMOUNT,
+      deadline,
+      v,
+      hexlify(r),
+      hexlify(s),
+    )).to.be.revertedWith('DEX: INVALID_SIGNATURE');
   });
 });
