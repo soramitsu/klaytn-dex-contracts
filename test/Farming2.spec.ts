@@ -77,7 +77,7 @@ describe('Farming2', () => {
       expect(await lp.balanceOf(bob.address)).to.equal('1000');
     });
 
-    it('should give out PTNs only after farming time', async () => {
+    it('should give out PTNs only after farming time [ @skip-on-coverage ]', async () => {
       // 100 per block farming rate starting at block 100
       farming = await Farming.deploy(ptn.address, '1000', '100');
       await farming.deployed();
@@ -129,7 +129,7 @@ describe('Farming2', () => {
       expect(await ptn.totalSupply()).to.equal('1315');
     });
 
-    it('should not distribute ptns if no one deposit', async () => {
+    it('should not distribute ptns if no one deposit [ @skip-on-coverage ]', async () => {
       // 100 per block farming rate starting at block 200
       farming = await Farming.deploy(ptn.address, '1000', '200');
       const lp3 = await KIP7LP.deploy('10000000000');

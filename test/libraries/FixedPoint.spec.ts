@@ -218,7 +218,7 @@ describe('FixedPoint', () => {
       );
     });
 
-    it('gas for short circuit where one multiplicand is 0', async () => {
+    it('gas for short circuit where one multiplicand is 0 [ @skip-on-coverage ]', async () => {
       expect(await fixedPoint.getGasCostOfMuluq(
         [BigNumber.from(0)],
         [BigNumber.from(30).mul(Q112)],
@@ -229,7 +229,7 @@ describe('FixedPoint', () => {
       )).to.eq(693);
     });
 
-    it('gas', async () => {
+    it('gas [ @skip-on-coverage ]', async () => {
       expect(await fixedPoint.getGasCostOfMuluq(
         [BigNumber.from(30).mul(Q112)],
         [BigNumber.from(30).mul(Q112)],
@@ -328,7 +328,7 @@ describe('FixedPoint', () => {
       );
     });
 
-    it('gas cost of dividend = divisor short circuit', async () => {
+    it('gas cost of dividend = divisor short circuit [ @skip-on-coverage ]', async () => {
       expect(await fixedPoint.getGasCostOfDivuq(
         [BigNumber.from(30).mul(Q112)],
         [BigNumber.from(30).mul(Q112)],
@@ -349,7 +349,7 @@ describe('FixedPoint', () => {
       await expect(fixedPoint.divuq([numerator], [denominator])).to.be.revertedWith('FixedPoint::divuq: overflow');
     });
 
-    it('gas cost of full precision small dividend short circuit', async () => {
+    it('gas cost of full precision small dividend short circuit [ @skip-on-coverage ]', async () => {
       expect(await fixedPoint.getGasCostOfDivuq([BigNumber.from(125).mul(Q112)], [BigNumber.from(30)
         .mul(Q112)])).to.eq(
         959,
@@ -364,7 +364,7 @@ describe('FixedPoint', () => {
       );
     });
 
-    it('gas cost of long division with less than 112 iterations', async () => {
+    it('gas cost of long division with less than 112 iterations [ @skip-on-coverage ]', async () => {
       // long division but makes fewer iterations
       expect(
         await fixedPoint.getGasCostOfDivuq(
@@ -374,7 +374,7 @@ describe('FixedPoint', () => {
       ).to.eq(1590);
     });
 
-    it('gas cost of long division with all iterations', async () => {
+    it('gas cost of long division with all iterations [ @skip-on-coverage ]', async () => {
       // 1/3rd, should make all iterations
       expect(
         await fixedPoint.getGasCostOfDivuq(
@@ -423,18 +423,18 @@ describe('FixedPoint', () => {
     it('can overflow if result of division does not fit', async () => {
       await expect(fixedPoint.fraction(Q112.mul(2359), 50)).to.be.revertedWith('FixedPoint::fraction: overflow');
     });
-    it('gas cost of 0', async () => {
+    it('gas cost of 0 [ @skip-on-coverage ]', async () => {
       expect(await fixedPoint.getGasCostOfFraction(BigNumber.from(0), BigNumber.from(569)))
         .to.eq(183);
     });
-    it('gas cost of smaller numbers', async () => {
+    it('gas cost of smaller numbers [ @skip-on-coverage ]', async () => {
       expect(await fixedPoint.getGasCostOfFraction(BigNumber.from(239), BigNumber.from(569)))
         .to.eq(355);
     });
-    it('gas cost of number greater than Q112 numbers', async () => {
+    it('gas cost of number greater than Q112 numbers [ @skip-on-coverage ]', async () => {
       expect(await fixedPoint.getGasCostOfFraction(Q112.mul(2359), Q112.mul(2360))).to.eq(355);
     });
-    it('gas cost of number greater than Q112 numbers2', async () => {
+    it('gas cost of number greater than Q112 numbers2 [ @skip-on-coverage ]', async () => {
       expect(
         await fixedPoint.getGasCostOfFraction(Q112.mul(
           BigNumber.from(2).pow(32).mul(2359),
@@ -475,7 +475,7 @@ describe('FixedPoint', () => {
       );
     });
 
-    it('gas cost of less than 1', async () => {
+    it('gas cost of less than 1 [ @skip-on-coverage ]', async () => {
       const input = BigNumber.from(1225).mul(Q112).div(100);
       expect(await fixedPoint.getGasCostOfSqrt([input])).to.eq(1899);
     });
@@ -485,7 +485,7 @@ describe('FixedPoint', () => {
         .mul(Q112)]))[0]).to.eq(BigNumber.from(5).mul(Q112));
     });
 
-    it('gas cost of 25', async () => {
+    it('gas cost of 25 [ @skip-on-coverage ]', async () => {
       const input = BigNumber.from(25).mul(Q112);
       expect(await fixedPoint.getGasCostOfSqrt([input])).to.eq(1917);
     });
@@ -497,7 +497,7 @@ describe('FixedPoint', () => {
       expect(result).to.eq(expected);
     });
 
-    it('gas cost of max uint144', async () => {
+    it('gas cost of max uint144 [ @skip-on-coverage ]', async () => {
       const input = BigNumber.from(2).pow(144).sub(1);
       expect(await fixedPoint.getGasCostOfSqrt([input])).to.eq(1961);
     });
@@ -509,7 +509,7 @@ describe('FixedPoint', () => {
       expect(result).to.eq(expected.shr(2).shl(2));
     });
 
-    it('gas cost of 2**144', async () => {
+    it('gas cost of 2**144 [ @skip-on-coverage ]', async () => {
       const input = BigNumber.from(2).pow(144);
       expect(await fixedPoint.getGasCostOfSqrt([input])).to.eq(2999);
     });
@@ -521,7 +521,7 @@ describe('FixedPoint', () => {
       expect(result).to.eq(expected.shr(40).shl(40));
     });
 
-    it('gas cost of encoded max uint112', async () => {
+    it('gas cost of encoded max uint112 [ @skip-on-coverage ]', async () => {
       const input = BigNumber.from(2).pow(112).sub(1).mul(Q112);
       expect(await fixedPoint.getGasCostOfSqrt([input])).to.eq(3576);
     });
@@ -533,7 +533,7 @@ describe('FixedPoint', () => {
       expect(result).to.eq(expected.shr(40).shl(40));
     });
 
-    it('gas cost of max uint224', async () => {
+    it('gas cost of max uint224 [ @skip-on-coverage ]', async () => {
       const input = BigNumber.from(2).pow(224).sub(1);
       expect(await fixedPoint.getGasCostOfSqrt([input])).to.eq(3576);
     });

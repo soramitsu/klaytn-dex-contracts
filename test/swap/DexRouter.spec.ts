@@ -563,7 +563,7 @@ describe('DexRouter', () => {
         );
     });
 
-    it('gas', async () => {
+    it('gas [ @skip-on-coverage ]', async () => {
       const WKLAYPartnerAmount2 = ethers.utils.parseEther('10');
       const ETHAmount2 = ethers.utils.parseEther('5');
       await WKLAYPartner.transfer(WKLAYPair.address, WKLAYPartnerAmount2);
@@ -682,7 +682,7 @@ describe('DexRouter', () => {
         .withArgs(router.address, swapAmount, 0, 0, expectedOutputAmount, wallet.address);
     });
 
-    it('gas', async () => {
+    it('gas [ @skip-on-coverage ]', async () => {
       await mineBlock((await ethers.provider.getBlock('latest')).timestamp + 1);
       await pair.sync();
 

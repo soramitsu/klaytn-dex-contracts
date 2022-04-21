@@ -222,7 +222,7 @@ describe('DexComputeLiquidityValue', () => {
         expect(token1Amount).to.eq('50000000000000000000');
       });
 
-      it('gas current price', async () => {
+      it('gas current price [ @skip-on-coverage ]', async () => {
         expect(
           await computeLiquidityValue.getGasCostOfGetLiquidityValueAfterArbitrageToPrice(
             token0.address,
@@ -234,7 +234,7 @@ describe('DexComputeLiquidityValue', () => {
         ).to.eq('19171');
       });
 
-      it('gas higher price', async () => {
+      it('gas higher price [ @skip-on-coverage ]', async () => {
         expect(
           await computeLiquidityValue.getGasCostOfGetLiquidityValueAfterArbitrageToPrice(
             token0.address,
@@ -246,7 +246,7 @@ describe('DexComputeLiquidityValue', () => {
         ).to.eq('19959');
       });
 
-      it('gas lower price', async () => {
+      it('gas lower price [ @skip-on-coverage ]', async () => {
         expect(
           await computeLiquidityValue.getGasCostOfGetLiquidityValueAfterArbitrageToPrice(
             token0.address,
@@ -357,7 +357,7 @@ describe('DexComputeLiquidityValue', () => {
         });
       });
 
-      it('gas current price', async () => {
+      it('gas current price [ @skip-on-coverage ]', async () => {
         expect(
           await computeLiquidityValue.getGasCostOfGetLiquidityValueAfterArbitrageToPrice(
             token0.address,
@@ -369,7 +369,7 @@ describe('DexComputeLiquidityValue', () => {
         ).to.eq('24847');
       });
 
-      it('gas higher price', async () => {
+      it('gas higher price [ @skip-on-coverage ]', async () => {
         expect(
           await computeLiquidityValue.getGasCostOfGetLiquidityValueAfterArbitrageToPrice(
             token0.address,
@@ -381,7 +381,7 @@ describe('DexComputeLiquidityValue', () => {
         ).to.eq('26326');
       });
 
-      it('gas lower price', async () => {
+      it('gas lower price [ @skip-on-coverage ]', async () => {
         expect(
           await computeLiquidityValue.getGasCostOfGetLiquidityValueAfterArbitrageToPrice(
             token0.address,

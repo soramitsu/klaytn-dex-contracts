@@ -23,6 +23,7 @@ describe('DexFactory', () => {
     expect(await factory.feeTo()).to.eq(constants.AddressZero);
     expect(await factory.feeToSetter()).to.eq(await wallet.getAddress());
     expect(await factory.allPairsLength()).to.eq(0);
+    console.log(await factory.INIT());
   });
 
   async function createPair(tokens: [string, string]) {
@@ -55,11 +56,10 @@ describe('DexFactory', () => {
     await createPair(TEST_ADDRESSES.slice().reverse() as [string, string]);
   });
 
-  it('createPair:gas', async () => {
+  it('createPair:gas [ @skip-on-coverage ]', async () => {
     const tx = await factory.createPair(...TEST_ADDRESSES);
     const receipt = await tx.wait();
     expect(receipt.gasUsed).to.eq(2232117);
-    console.log(await factory.INIT());
   });
 
   it('setFeeTo', async () => {

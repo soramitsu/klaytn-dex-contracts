@@ -28,15 +28,15 @@ describe('BitMath', () => {
     it('uint256(-1)', async () => {
       expect(await bitMath.mostSignificantBit(BigNumber.from(2).pow(256).sub(1))).to.eq(255);
     });
-    it('gas cost of smaller number', async () => {
+    it('gas cost of smaller number [ @skip-on-coverage ]', async () => {
       expect(await bitMath.getGasCostOfMostSignificantBit(BigNumber.from(3568))).to.eq(595);
     });
-    it('gas cost of max uint128', async () => {
+    it('gas cost of max uint128 [ @skip-on-coverage ]', async () => {
       expect(await bitMath.getGasCostOfMostSignificantBit(
         BigNumber.from(2).pow(128).sub(1),
       )).to.eq(1067);
     });
-    it('gas cost of max uint256', async () => {
+    it('gas cost of max uint256 [ @skip-on-coverage ]', async () => {
       expect(await bitMath.getGasCostOfMostSignificantBit(
         BigNumber.from(2).pow(256).sub(1),
       )).to.eq(1185);
@@ -62,15 +62,15 @@ describe('BitMath', () => {
     it('uint256(-1)', async () => {
       expect(await bitMath.leastSignificantBit(BigNumber.from(2).pow(256).sub(1))).to.eq(0);
     });
-    it('gas cost of smaller number', async () => {
+    it('gas cost of smaller number [ @skip-on-coverage ]', async () => {
       expect(await bitMath.getGasCostOfLeastSignificantBit(BigNumber.from(3568))).to.eq(1063);
     });
-    it('gas cost of max uint128', async () => {
+    it('gas cost of max uint128 [ @skip-on-coverage ]', async () => {
       expect(await bitMath.getGasCostOfLeastSignificantBit(
         BigNumber.from(2).pow(128).sub(1),
       )).to.eq(1156);
     });
-    it('gas cost of max uint256', async () => {
+    it('gas cost of max uint256 [ @skip-on-coverage ]', async () => {
       expect(await bitMath.getGasCostOfLeastSignificantBit(
         BigNumber.from(2).pow(256).sub(1),
       )).to.eq(1156);

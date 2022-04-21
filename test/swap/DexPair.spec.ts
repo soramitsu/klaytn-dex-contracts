@@ -154,7 +154,7 @@ describe('DexPair', () => {
       .to.eq(totalSupplyToken1.sub(token1Amount).sub(swapAmount));
   });
 
-  it('swap:gas', async () => {
+  it('swap:gas [ @skip-on-coverage ]', async () => {
     const token0Amount = ethers.utils.parseEther('5');
     const token1Amount = ethers.utils.parseEther('10');
     await addLiquidity(token0Amount, token1Amount);
