@@ -2,7 +2,7 @@ import { ethers } from 'hardhat';
 import { expect } from 'chai';
 import { Contract, ContractFactory } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { advanceBlockTo } from './shared/utilities';
+import { advanceBlockTo } from '../shared/utilities';
 
 describe('Farming', () => {
   let minter: SignerWithAddress;
@@ -88,6 +88,9 @@ describe('Farming', () => {
     await chef.add('100', lp27.address, true);
     expect(await chef.poolLength()).to.be.equal(28);
 
+    await expect(chef.add('100', lp2.address, false))
+      .to.be.revertedWith('Token already added');
+
     await advanceBlockTo(170);
     await lp1.connect(alice).approve(chef.address, '1000');
     expect(await ptn.balanceOf(alice.address)).to.be.equal(0);
@@ -128,6 +131,22 @@ describe('Farming', () => {
     expect(await lp1.balanceOf(bob.address)).to.be.equal('2000');
   });
 
+  it('deposit/withdraw:fail', async () => {
+    await chef.add(1000, lp1.address, true);
+    await lp1.connect(alice).approve(chef.address, '100');
+
+    await chef.connect(alice).deposit(1, '20');
+    await expect(chef.connect(alice).deposit(0, '40'))
+      .to.be.revertedWith('deposit PTN by staking');
+
+    await chef.connect(alice).withdraw(1, '10');
+    await expect(chef.connect(alice).withdraw(0, '10'))
+      .to.be.revertedWith('withdraw PTN by unstaking');
+    await expect(chef.connect(alice).withdraw(1, '60'))
+      .to.be.revertedWith('withdraw: not good');
+    await chef.connect(alice).withdraw(1, '0');
+  });
+
   it('staking/unstaking', async () => {
     await chef.add('1000', lp1.address, true);
     await chef.add('1000', lp2.address, true);
@@ -144,6 +163,8 @@ describe('Farming', () => {
     expect((await ptn.balanceOf(alice.address)).toString()).to.be.equal('249');
     await chef.connect(alice).leaveStaking('250');
     expect((await ptn.balanceOf(alice.address)).toString()).to.be.equal('748');
+    await expect(chef.connect(alice).leaveStaking('260'))
+      .to.be.revertedWith('withdraw: not good');
   });
 
   it('update multiplier', async () => {

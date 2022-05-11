@@ -2,7 +2,7 @@ import { ethers } from 'hardhat';
 import { expect } from 'chai';
 import { Contract, ContractFactory } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { advanceBlockTo } from './shared/utilities';
+import { advanceBlockTo } from '../shared/utilities';
 
 describe('Staking', () => {
   let minter: SignerWithAddress;
@@ -74,6 +74,9 @@ describe('Staking', () => {
 
       await staking.connect(bob).emergencyWithdraw(0);
 
+      expect(await token.balanceOf(bob.address)).to.equal('1000');
+
+      await staking.updateMultiplier(0);
       expect(await token.balanceOf(bob.address)).to.equal('1000');
     });
 
@@ -167,7 +170,7 @@ describe('Staking', () => {
       expect(await ptn.balanceOf(staking.address)).to.equal('4334');
       // Bob withdraws 5 tokens at block 330. At this point:
       await advanceBlockTo(329);
-      await staking.connect(bob).withdraw(0, '5', { from: bob.address });
+      await staking.connect(bob).withdraw(0, '5');
       expect(await ptn.totalSupply()).to.equal('20000');
       expect(await ptn.balanceOf(alice.address)).to.equal('5666');
       expect(await ptn.balanceOf(bob.address)).to.equal('6190');
@@ -178,10 +181,12 @@ describe('Staking', () => {
       // Carol withdraws 30 tokens at block 360.
       await advanceBlockTo(339);
       await staking.connect(alice).withdraw(0, '20');
+
       await advanceBlockTo(349);
       await staking.connect(bob).withdraw(0, '15');
+
       await advanceBlockTo(359);
-      await staking.connect(carol).withdraw(0, '30', { from: carol.address });
+      await staking.connect(carol).withdraw(0, '30');
       expect(await ptn.totalSupply()).to.equal('50000');
       expect(await ptn.balanceOf(alice.address)).to.equal('11600');
       expect(await ptn.balanceOf(bob.address)).to.equal('11831');
@@ -190,9 +195,12 @@ describe('Staking', () => {
       expect(await token.balanceOf(alice.address)).to.equal('1000');
       expect(await token.balanceOf(bob.address)).to.equal('1000');
       expect(await token.balanceOf(carol.address)).to.equal('1000');
+
+      await expect(staking.connect(carol).withdraw(0, '300000'))
+        .to.be.revertedWith('withdraw: not good');
     });
 
-    it('should give proper ptns allocation to each pool', async () => {
+    it('should give proper ptns allocation to each pool with updatePtnPerBlock', async () => {
       // 100 per block staking rate starting at block 400
       staking = await Staking.deploy(ptn.address, '100', '400');
       await ptn.grantRole((await ptn.MINTER_ROLE()), staking.address);
@@ -217,6 +225,20 @@ describe('Staking', () => {
       // At block 430. Bob should get 5*2/3*1000 = 3333. Alice should get ~1666 more.
       expect(await staking.pendingPtn(0, alice.address)).to.equal('13333');
       expect(await staking.pendingPtn(1, bob.address)).to.equal('3333');
+
+      await staking.updatePtnPerBlock(0);
+      expect(await staking.pendingPtn(0, alice.address)).to.equal('13666');
+      expect(await staking.pendingPtn(1, bob.address)).to.equal('4000');
+
+      await advanceBlockTo(490);
+      expect(await staking.pendingPtn(0, alice.address)).to.equal('13666');
+      expect(await staking.pendingPtn(1, bob.address)).to.equal('4000');
+      await staking.connect(alice).deposit(0, '0');
+      await staking.connect(bob).deposit(1, '0');
+
+      await advanceBlockTo(560);
+      expect(await staking.pendingPtn(0, alice.address)).to.equal('0');
+      expect(await staking.pendingPtn(1, bob.address)).to.equal('0');
     });
   });
 });

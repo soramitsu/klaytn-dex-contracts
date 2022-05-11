@@ -10,7 +10,7 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
     using TransferHelper for IKIP7;
 
     // The address of the smart chef factory
-    address public immutable SMART_CHEF_FACTORY;
+    address public immutable STAKING_FACTORY;
 
     // Whether a limit is set for users
     bool public userLimit;
@@ -66,7 +66,7 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
     event Withdraw(address indexed user, uint256 amount);
 
     constructor() {
-        SMART_CHEF_FACTORY = msg.sender;
+        STAKING_FACTORY = msg.sender;
     }
 
     /*
@@ -91,7 +91,7 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
         address _admin
     ) external {
         require(!isInitialized, "Already initialized");
-        require(msg.sender == SMART_CHEF_FACTORY, "Not factory");
+        require(msg.sender == STAKING_FACTORY, "Not factory");
 
         // Make this contract initialized
         isInitialized = true;

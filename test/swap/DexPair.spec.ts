@@ -311,10 +311,7 @@ describe('DexPair', () => {
     const token0Amount = ethers.utils.parseEther('1000');
     const token1Amount = ethers.utils.parseEther('1000');
     await addLiquidity(token0Amount, token1Amount);
-    const swapAmount = ethers.utils.parseEther('1');
     const expectedOutputAmount = BigNumber.from('1662497915624478906');
-    await token0.transfer(pair.address, swapAmount);
-    await token1.transfer(pair.address, swapAmount);
     await expect(pair.swap(0, expectedOutputAmount, token0.address, '0x'))
       .to.be.revertedWith('InvalidAddressParameters("DEX: INVALID_TO")');
     await expect(pair.swap(0, 0, wallet.address, '0x'))

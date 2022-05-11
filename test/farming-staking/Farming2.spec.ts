@@ -2,7 +2,7 @@ import { ethers } from 'hardhat';
 import { expect } from 'chai';
 import { Contract, ContractFactory } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { advanceBlockTo } from './shared/utilities';
+import { advanceBlockTo } from '../shared/utilities';
 
 describe('Farming2', () => {
   let minter: SignerWithAddress;
@@ -248,6 +248,54 @@ describe('Farming2', () => {
       // 5 * (250 * 1e12 / 5) = 50
       // Bob should have 250 pending reward
       expect(await farming.pendingPtn(2, bob.address)).to.equal('250');
+
+      await advanceBlockTo(440);
+      await farming.updatePtnPerBlock(0);
+      expect(await farming.pendingPtn(1, alice.address)).to.equal('1294');
+      expect(await farming.pendingPtn(2, bob.address)).to.equal('800');
+      await advanceBlockTo(450);
+      expect(await farming.pendingPtn(1, alice.address)).to.equal('1294');
+      expect(await farming.pendingPtn(2, bob.address)).to.equal('800');
+      await advanceBlockTo(460);
+      expect(await farming.pendingPtn(1, alice.address)).to.equal('1294');
+      expect(await farming.pendingPtn(2, bob.address)).to.equal('800');
+      await advanceBlockTo(550);
+      expect(await farming.pendingPtn(1, alice.address)).to.equal('1294');
+      expect(await farming.pendingPtn(2, bob.address)).to.equal('800');
+    });
+    it('should update allocation to each pool', async () => {
+      // 100 per block farming rate starting at block 400
+      farming = await Farming.deploy(ptn.address, '100', '600');
+      await ptn.grantRole((await ptn.MINTER_ROLE()), farming.address);
+      await lp.connect(alice).approve(farming.address, '1000');
+      await lp2.connect(bob).approve(farming.address, '1000');
+      // Add first LP to the pool with allocation 1
+      await farming.add('10', lp.address, true);
+      // Alice deposits 10 LPs at block 410
+      await advanceBlockTo(609);
+      await farming.connect(alice).deposit(1, '10');
+      // Add LP2 to the pool with allocation 2 at block 420
+      await advanceBlockTo(619);
+      await farming.add('20', lp2.address, true);
+      expect(await farming.pendingPtn(1, alice.address)).to.equal('769');
+      // Bob deposits 10 LP2s at block 425
+      await advanceBlockTo(624);
+      await farming.connect(bob).deposit(2, '5');
+
+      await advanceBlockTo(640);
+      await farming.set(1, 0, true);
+      await farming.set(2, 0, true);
+      expect(await farming.pendingPtn(1, alice.address)).to.equal('1294');
+      expect(await farming.pendingPtn(2, bob.address)).to.equal('876');
+      await advanceBlockTo(650);
+      expect(await farming.pendingPtn(1, alice.address)).to.equal('1294');
+      expect(await farming.pendingPtn(2, bob.address)).to.equal('876');
+      await advanceBlockTo(660);
+      expect(await farming.pendingPtn(1, alice.address)).to.equal('1294');
+      expect(await farming.pendingPtn(2, bob.address)).to.equal('876');
+      await advanceBlockTo(670);
+      expect(await farming.pendingPtn(1, alice.address)).to.equal('1294');
+      expect(await farming.pendingPtn(2, bob.address)).to.equal('876');
     });
   });
 });

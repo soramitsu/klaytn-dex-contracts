@@ -223,6 +223,18 @@ describe('DexRouter', () => {
         constants.MaxUint256,
       ),
     ).to.be.revertedWith('InsufficientAmount("DexRouter: INSUFFICIENT_B_AMOUNT")');
+    await expect(
+      router.addLiquidity(
+        token0.address,
+        token1.address,
+        token0Amount,
+        token1Amount,
+        token0Amount,
+        token1Amount,
+        wallet.address,
+        0,
+      ),
+    ).to.be.revertedWith('Expired()');
   });
 
   it('addLiquidityETH', async () => {
@@ -300,7 +312,36 @@ describe('DexRouter', () => {
     expect(await token0.balanceOf(wallet.address)).to.eq(totalSupplyToken0.sub(500));
     expect(await token1.balanceOf(wallet.address)).to.eq(totalSupplyToken1.sub(2000));
   });
+  it('removeLiquidity:fail', async () => {
+    const token0Amount = ethers.utils.parseEther('1');
+    const token1Amount = ethers.utils.parseEther('4');
+    await addLiquidity(token0Amount, token1Amount);
 
+    const expectedLiquidity = ethers.utils.parseEther('2');
+    await pair.approve(router.address, constants.MaxUint256);
+    await expect(
+      router.removeLiquidity(
+        token0.address,
+        token1.address,
+        expectedLiquidity.sub(MINIMUM_LIQUIDITY),
+        expectedLiquidity,
+        0,
+        wallet.address,
+        constants.MaxUint256,
+      ),
+    ).to.be.revertedWith('InsufficientAmount("DexRouter: INSUFFICIENT_A_AMOUNT")');
+    await expect(
+      router.removeLiquidity(
+        token0.address,
+        token1.address,
+        expectedLiquidity.sub(MINIMUM_LIQUIDITY),
+        0,
+        ethers.utils.parseEther('4'),
+        wallet.address,
+        constants.MaxUint256,
+      ),
+    ).to.be.revertedWith('InsufficientAmount("DexRouter: INSUFFICIENT_B_AMOUNT")');
+  });
   it('removeLiquidityETH', async () => {
     const WKLAYPartnerAmount = ethers.utils.parseEther('1');
     const ETHAmount = ethers.utils.parseEther('4');
@@ -450,6 +491,24 @@ describe('DexRouter', () => {
         router.swapExactTokensForETH(
           swapAmount,
           0,
+          [WKLAYPartner.address, WKLAYPartner.address],
+          wallet.address,
+          constants.MaxUint256,
+        ),
+      ).to.be.revertedWith('InvalidPath()');
+      await expect(
+        router.swapExactTokensForETH(
+          swapAmount,
+          ETHAmount,
+          [WKLAYPartner.address, WKLAY.address],
+          wallet.address,
+          constants.MaxUint256,
+        ),
+      ).to.be.revertedWith('InsufficientAmount("DexRouter: INSUFFICIENT_OUTPUT_AMOUNT")');
+      await expect(
+        router.swapExactTokensForETH(
+          swapAmount,
+          0,
           [WKLAYPartner.address, WKLAY.address],
           wallet.address,
           constants.MaxUint256,
@@ -506,6 +565,17 @@ describe('DexRouter', () => {
           },
         ),
       ).to.be.revertedWith('InvalidPath()');
+      await expect(
+        router.swapETHForExactTokens(
+          outputAmount,
+          [WKLAY.address, WKLAYPartner.address],
+          wallet.address,
+          constants.MaxUint256,
+          {
+            value: 5,
+          },
+        ),
+      ).to.be.revertedWith('ExcessiveInputAmount()');
       await expect(
         router.swapETHForExactTokens(
           outputAmount,
@@ -664,6 +734,15 @@ describe('DexRouter', () => {
       await expect(
         router.swapTokensForExactETH(
           outputAmount,
+          constants.Zero,
+          [WKLAYPartner.address, WKLAY.address],
+          wallet.address,
+          constants.MaxUint256,
+        ),
+      ).to.be.revertedWith('ExcessiveInputAmount()');
+      await expect(
+        router.swapTokensForExactETH(
+          outputAmount,
           constants.MaxUint256,
           [WKLAYPartner.address, WKLAYPartner.address],
           wallet.address,
@@ -765,6 +844,16 @@ describe('DexRouter', () => {
 
     it('happy path', async () => {
       await token0.approve(router.address, constants.MaxUint256);
+      await expect(
+        router.swapTokensForExactTokens(
+          outputAmount,
+          constants.Zero,
+          [token0.address, token1.address],
+          wallet.address,
+          constants.MaxUint256,
+        ),
+      )
+        .to.be.revertedWith('ExcessiveInputAmount()');
       await expect(
         router.swapTokensForExactTokens(
           outputAmount,
@@ -946,6 +1035,16 @@ describe('DexRouter fee-on-transfer tokens', async () => {
     const swapAmount = ethers.utils.parseEther('1');
     await addLiquidity(DTTAmount, ETHAmount);
 
+    await expect(router.swapExactETHForTokensSupportingFeeOnTransferTokens(
+      0,
+      [DTT.address, constants.AddressZero],
+      wallet.address,
+      constants.MaxUint256,
+      {
+        value: swapAmount,
+      },
+    )).to.be.revertedWith('InvalidPath()');
+
     await router.swapExactETHForTokensSupportingFeeOnTransferTokens(
       0,
       [WKLAY.address, DTT.address],
@@ -967,6 +1066,14 @@ describe('DexRouter fee-on-transfer tokens', async () => {
 
     await addLiquidity(DTTAmount, ETHAmount);
     await DTT.approve(router.address, constants.MaxUint256);
+
+    await expect(router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+      swapAmount,
+      0,
+      [WKLAY.address, DTT.address],
+      wallet.address,
+      constants.MaxUint256,
+    )).to.be.revertedWith('InvalidPath()');
 
     await router.swapExactTokensForETHSupportingFeeOnTransferTokens(
       swapAmount,
