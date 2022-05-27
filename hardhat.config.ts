@@ -53,16 +53,13 @@ const config: HardhatUserConfig = {
       accounts: { mnemonic, initialIndex: 0 },
       chainId: 1001,
       gas: 8500000,
-      gasPrice: 750000000000,
+      gasPrice: 250000000000,
     },
   },
   gasReporter: {
     enabled: process.env.REPORT_GAS !== 'false',
     currency: 'USD',
     gasPrice: 750,
-  },
-  etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY,
   },
 };
 
