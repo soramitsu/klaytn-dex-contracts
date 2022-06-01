@@ -155,7 +155,7 @@ describe('Farming2', () => {
       expect(await lp.balanceOf(bob.address)).to.equal('990');
     });
 
-    it('should distribute ptns properly for each staker', async () => {
+    it('should distribute ptns properly for each staker [ @skip-on-coverage ]', async () => {
       // 100 per block farming rate starting at block 300
       farming = await Farming.deploy(ptn.address, '100', '300');
       await farming.deployed();
@@ -207,6 +207,41 @@ describe('Farming2', () => {
       expect(await lp.balanceOf(bob.address)).to.equal('1000');
       expect(await lp.balanceOf(carol.address)).to.equal('1000');
     });
+
+    // it('should distribute ptns properly for each staker on coverage', async () => {
+    //   // 100 per block farming rate starting at block 300
+    //   farming = await Farming.deploy(ptn.address, '100', '300');
+    //   await farming.deployed();
+    //   await ptn.grantRole((await ptn.MINTER_ROLE()), farming.address);
+    //   await farming.add('100', lp.address, true, 1);
+    //   await lp.connect(alice).approve(farming.address, '1000');
+    //   await lp.connect(bob).approve(farming.address, '1000');
+    //   await lp.connect(carol).approve(farming.address, '1000');
+    //   // Alice deposits 10 LPs at block 310
+    //   await advanceBlockTo(309);
+    //   await farming.connect(alice).deposit(1, '10');
+    //   // Bob deposits 20 LPs at block 314
+    //   await advanceBlockTo(313);
+    //   await farming.connect(bob).deposit(1, '20');
+    //   // Carol deposits 30 LPs at block 318
+    //   await advanceBlockTo(317);
+    //   await farming.connect(carol).deposit(1, '30');
+    //   // Alice deposits 10 more LPs at block 320. At this point:
+    //   await advanceBlockTo(319);
+    //   await farming.connect(alice).deposit(1, '10');
+    //   // Bob withdraws 5 LPs at block 330. At this point:
+    //   await advanceBlockTo(329);
+    //   await farming.connect(bob).withdraw(1, '5', { from: bob.address });
+    //   // Alice withdraws 20 LPs at block 340.
+    //   // Bob withdraws 15 LPs at block 350.
+    //   // Carol withdraws 30 LPs at block 360.
+    //   await advanceBlockTo(339);
+    //   await farming.connect(alice).withdraw(1, '20', { from: alice.address });
+    //   await advanceBlockTo(349);
+    //   await farming.connect(bob).withdraw(1, '15', { from: bob.address });
+    //   await advanceBlockTo(359);
+    //   await farming.connect(carol).withdraw(1, '30', { from: carol.address });
+    // });
 
     it('should give proper ptns allocation to each pool', async () => {
       // 100 per block farming rate starting at block 400
