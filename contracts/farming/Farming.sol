@@ -41,10 +41,6 @@ contract Farming is Ownable, ReentrancyGuard{
 
     // PTN tokens created per block.
     uint256 public ptnPerBlock;
-    // Bonus muliplier for early ptn makers.
-    uint256 public BONUS_MULTIPLIER = 1;
-    // The migrator contract. It has a lot of power. Can only be set through governance (owner).
-
     // Info of each pool.
     PoolInfo[] public poolInfo;
     mapping (address => bool) public addedTokens;
@@ -104,7 +100,10 @@ contract Farming is Ownable, ReentrancyGuard{
         ptnPerBlock = _ptnPerBlock;
     }
 
-     // Return reward multiplier over the given _from to _to block.
+    /// @dev Returns reward multiplier over the given `_from` to `_to` block for `_pid` pool.
+    /// @param _pid The id of the pool. See `poolInfo`.
+    /// @param _from Start block number
+    /// @param _to End block number
     function getMultiplier(uint256 _pid, uint256 _from, uint256 _to) public view returns (uint256) {
         return (_to - _from) * poolInfo[_pid].bonusMultiplier;
     }

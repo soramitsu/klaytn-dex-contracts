@@ -86,16 +86,24 @@ contract Staking is Ownable, ReentrancyGuard {
         ptnPerBlock = _ptnPerBlock;
     }
 
-     // Return reward multiplier over the given _from to _to block.
+    /// @dev Returns reward multiplier over the given `_from` to `_to` block for `_pid` pool.
+    /// @param _pid The id of the pool. See `poolInfo`.
+    /// @param _from Start block number
+    /// @param _to End block number
     function getMultiplier(uint256 _pid, uint256 _from, uint256 _to) public view returns (uint256) {
         return (_to - _from) * poolInfo[_pid].bonusMultiplier;
     }
 
+    /// @dev Returns the number of farming pools.
     function poolLength() external view returns (uint256) {
         return poolInfo.length;
     }
 
-    // Add a new token to the pool. Can only be called by the owner.
+    /// @dev Add a new pool. Can only be called by the owner.
+    /// @param _allocPoint Number of allocation points for the new pool.
+    /// @param _stakingToken Address of the KIP7/ERC20 token.
+    /// @param _withUpdate Whether call "massUpdatePools" operation.
+    /// @param _multiplier  The pool reward multipler.
     function add(uint256 _allocPoint, address _stakingToken, bool _withUpdate, uint256 _multiplier) public onlyOwner {
         require(_stakingToken != address(ptn), "Can't stake reward token");
         require(addedTokens[_stakingToken] == false, "Token already added");
@@ -116,7 +124,10 @@ contract Staking is Ownable, ReentrancyGuard {
         emit AddPool(poolInfo.length - 1, _allocPoint, _stakingToken, _multiplier);
     }
 
-    // Update the given pool's PTN allocation point. Can only be called by the owner.
+    /// @notice Update the given pool's PTN allocation point. Can only be called by the owner.
+    /// @param _pid The id of the pool. See `poolInfo`.
+    /// @param _allocPoint New number of allocation points for the pool.
+    /// @param _withUpdate Whether call "massUpdatePools" operation.
     function set(uint256 _pid, uint256 _allocPoint, bool _withUpdate) public onlyOwner {
         if (_withUpdate) {
             massUpdatePools();
@@ -129,7 +140,7 @@ contract Staking is Ownable, ReentrancyGuard {
         emit SetPool(_pid, _allocPoint);
     }
 
-    // Update reward variables for all pools. Be careful of gas spending!
+    /// @dev Update PTN reward for all the active pools. Be careful of gas spending!
     function massUpdatePools() public {
         uint256 length = poolInfo.length;
         for (uint256 pid = 0; pid < length; ++pid) {
@@ -137,7 +148,8 @@ contract Staking is Ownable, ReentrancyGuard {
         }
     }
 
-    // Update reward variables of the given pool to be up-to-date.
+    /// @notice Update reward variables for the given pool.
+    /// @param _pid The id of the pool. See `poolInfo`.
     function updatePool(uint256 _pid) public {
         PoolInfo storage pool = poolInfo[_pid];
         if (block.number > pool.lastRewardBlock) {
@@ -153,7 +165,9 @@ contract Staking is Ownable, ReentrancyGuard {
         }
     }
 
-    // Deposit tokens to Staking Contract for PTN allocation.
+    /// @dev Deposit KIP7/ERC20 tokens to pool.
+    /// @param _pid The id of the pool. See `poolInfo`.
+    /// @param _amount Amount of a token to deposit.
     function deposit(uint256 _pid, uint256 _amount) external nonReentrant {
 
         PoolInfo storage pool = poolInfo[_pid];
@@ -174,7 +188,9 @@ contract Staking is Ownable, ReentrancyGuard {
         emit Deposit(msg.sender, _pid, _amount);
     }
 
-    // Withdraw tokens from Staking Contract.
+    /// @dev Withdraw KIP7/ERC20 tokens from the pool.
+    /// @param _pid The id of the pool. See `poolInfo`.
+    /// @param _amount Amount of a token to withdraw.
     function withdraw(uint256 _pid, uint256 _amount) external nonReentrant {
 
         PoolInfo storage pool = poolInfo[_pid];
