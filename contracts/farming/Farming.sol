@@ -89,8 +89,13 @@ contract Farming is Ownable, ReentrancyGuard{
 
     }
 
+    /// @dev Update reward multiplier for `_pid` pool.
+    /// @param _pid The id of the pool. See `poolInfo`.
+    /// @param _multiplier The new pool rewards multiplier.
     function updateMultiplier(uint256 _pid, uint256 _multiplier) public onlyOwner {
-        poolInfo[_pid].bonusMultiplier = _multiplier.toUint64();
+        updatePool(_pid);
+        uint256 multiplier = _multiplier == 0 ? 1 : _multiplier;
+        poolInfo[_pid].bonusMultiplier = multiplier.toUint64();
     }
 
     function updatePtnPerBlock(uint256 _ptnPerBlock) external onlyOwner {

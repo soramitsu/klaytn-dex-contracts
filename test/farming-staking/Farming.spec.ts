@@ -90,7 +90,6 @@ describe('Farming', () => {
 
     await expect(chef.add('100', lp2.address, false, 1))
       .to.be.revertedWith('Token already added');
-
     await advanceBlockTo(170);
     await lp1.connect(alice).approve(chef.address, '1000');
     expect(await ptn.balanceOf(alice.address)).to.be.equal(0);
@@ -152,6 +151,8 @@ describe('Farming', () => {
     await chef.add('1000', lp2.address, true, 1);
     await chef.add('1000', lp3.address, true, 1);
 
+    await advanceBlockTo(300);
+
     await lp1.connect(alice).approve(chef.address, '10');
     await chef.connect(alice).deposit(1, '2'); // 0
     await chef.connect(alice).withdraw(1, '2'); // 1
@@ -168,9 +169,14 @@ describe('Farming', () => {
   });
 
   it('update multiplier', async () => {
-    await chef.add('1000', lp1.address, true, 1);
-    await chef.add('1000', lp2.address, true, 1);
-    await chef.add('1000', lp3.address, true, 1);
+    await chef.add('1000', lp1.address, true, 2);
+    await chef.add('1000', lp2.address, true, 2);
+    await chef.add('1000', lp3.address, true, 2);
+
+    await advanceBlockTo(400);
+
+    await chef.updateMultiplier(0, 0);
+    await chef.updateMultiplier(1, 0);
 
     await lp1.connect(alice).approve(chef.address, '100');
     await lp1.connect(bob).approve(chef.address, '100');
@@ -184,24 +190,26 @@ describe('Farming', () => {
 
     await chef.connect(alice).enterStaking('50');
     await chef.connect(bob).enterStaking('100');
-    await chef.updateMultiplier(0, 0);
-    await chef.updateMultiplier(1, 0);
+
+    await chef.updatePtnPerBlock(0);
 
     await chef.connect(alice).enterStaking(0);
     await chef.connect(bob).enterStaking(0);
     await chef.connect(alice).deposit(1, '0');
     await chef.connect(bob).deposit(1, '0');
-    expect(await ptn.balanceOf(alice.address)).to.be.equal('455');
-    expect(await ptn.balanceOf(bob.address)).to.be.equal('150');
 
-    await advanceBlockTo(265);
+    expect(await ptn.balanceOf(alice.address)).to.be.equal('1083');
+    expect(await ptn.balanceOf(bob.address)).to.be.equal('783');
+
+    await advanceBlockTo(500);
 
     await chef.connect(alice).enterStaking(0);
     await chef.connect(bob).enterStaking(0);
+
     await chef.connect(alice).deposit(1, 0);
     await chef.connect(bob).deposit(1, 0);
-    expect(await ptn.balanceOf(alice.address)).to.be.equal('455');
-    expect(await ptn.balanceOf(bob.address)).to.be.equal('150');
+    expect(await ptn.balanceOf(alice.address)).to.be.equal('1083');
+    expect(await ptn.balanceOf(bob.address)).to.be.equal('783');
 
     await chef.connect(alice).leaveStaking('50');
     await chef.connect(bob).leaveStaking('100');
