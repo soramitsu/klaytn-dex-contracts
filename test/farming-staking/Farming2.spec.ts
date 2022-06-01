@@ -64,7 +64,7 @@ describe('Farming2', () => {
       farming = await Farming.deploy(ptn.address, '100', '100');
       await farming.deployed();
 
-      await farming.add('100', lp.address, true);
+      await farming.add('100', lp.address, true, 1);
 
       await lp.connect(bob).approve(farming.address, '1000');
 
@@ -91,15 +91,15 @@ describe('Farming2', () => {
       const lp8 = await KIP7LP.deploy('10000000000');
       const lp9 = await KIP7LP.deploy('10000000000');
 
-      await farming.add('2000', lp.address, true);
-      await farming.add('1000', lp2.address, true);
-      await farming.add('500', lp3.address, true);
-      await farming.add('500', lp4.address, true);
-      await farming.add('500', lp5.address, true);
-      await farming.add('500', lp6.address, true);
-      await farming.add('500', lp7.address, true);
-      await farming.add('100', lp8.address, true);
-      await farming.add('100', lp9.address, true);
+      await farming.add('2000', lp.address, true, 1);
+      await farming.add('1000', lp2.address, true, 1);
+      await farming.add('500', lp3.address, true, 1);
+      await farming.add('500', lp4.address, true, 1);
+      await farming.add('500', lp5.address, true, 1);
+      await farming.add('500', lp6.address, true, 1);
+      await farming.add('500', lp7.address, true, 1);
+      await farming.add('100', lp8.address, true, 1);
+      await farming.add('100', lp9.address, true, 1);
 
       expect(await farming.poolLength()).to.be.equal(10);
 
@@ -135,9 +135,9 @@ describe('Farming2', () => {
       const lp3 = await KIP7LP.deploy('10000000000');
       await farming.deployed();
       await ptn.grantRole((await ptn.MINTER_ROLE()), farming.address);
-      await farming.add('1000', lp.address, true);
-      await farming.add('1000', lp2.address, true);
-      await farming.add('1000', lp3.address, true);
+      await farming.add('1000', lp.address, true, 1);
+      await farming.add('1000', lp2.address, true, 1);
+      await farming.add('1000', lp3.address, true, 1);
       await lp.connect(bob).approve(farming.address, '1000');
       await advanceBlockTo(199);
       expect(await ptn.totalSupply()).to.equal('0');
@@ -160,7 +160,7 @@ describe('Farming2', () => {
       farming = await Farming.deploy(ptn.address, '100', '300');
       await farming.deployed();
       await ptn.grantRole((await ptn.MINTER_ROLE()), farming.address);
-      await farming.add('100', lp.address, true);
+      await farming.add('100', lp.address, true, 1);
       await lp.connect(alice).approve(farming.address, '1000');
       await lp.connect(bob).approve(farming.address, '1000');
       await lp.connect(carol).approve(farming.address, '1000');
@@ -215,13 +215,13 @@ describe('Farming2', () => {
       await lp.connect(alice).approve(farming.address, '1000');
       await lp2.connect(bob).approve(farming.address, '1000');
       // Add first LP to the pool with allocation 1
-      await farming.add('10', lp.address, true);
+      await farming.add('10', lp.address, true, 1);
       // Alice deposits 10 LPs at block 410
       await advanceBlockTo(409);
       await farming.connect(alice).deposit(1, '10');
       // Add LP2 to the pool with allocation 2 at block 420
       await advanceBlockTo(419);
-      await farming.add('20', lp2.address, true);
+      await farming.add('20', lp2.address, true, 1);
       // (1010-1000 + 10/3) = 13
       // (10 * 10 * 100) / 13 = 769
       // (769 * 1e12 / 10) = 769 00000000000
@@ -270,13 +270,13 @@ describe('Farming2', () => {
       await lp.connect(alice).approve(farming.address, '1000');
       await lp2.connect(bob).approve(farming.address, '1000');
       // Add first LP to the pool with allocation 1
-      await farming.add('10', lp.address, true);
+      await farming.add('10', lp.address, true, 1);
       // Alice deposits 10 LPs at block 410
       await advanceBlockTo(609);
       await farming.connect(alice).deposit(1, '10');
       // Add LP2 to the pool with allocation 2 at block 420
       await advanceBlockTo(619);
-      await farming.add('20', lp2.address, true);
+      await farming.add('20', lp2.address, true, 1);
       expect(await farming.pendingPtn(1, alice.address)).to.equal('769');
       // Bob deposits 10 LP2s at block 425
       await advanceBlockTo(624);

@@ -170,8 +170,8 @@ contract PlatformToken is KIP7, AccessControl {
         );
 
         address signer = ecrecover(digest, v, r, s);
-        require(signer != address(0), "SUSHI::delegateBySig: invalid signature");
-        require(nonce == nonces[signer]++, "SUSHI::delegateBySig: invalid nonce");
+        require(signer != address(0), "PTN::delegateBySig: invalid signature");
+        require(nonce == nonces[signer]++, "PTN::delegateBySig: invalid nonce");
         _delegate(signer, delegatee);
     }
 
