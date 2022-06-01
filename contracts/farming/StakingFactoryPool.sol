@@ -128,12 +128,17 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
         UserInfo storage user = userInfo[msg.sender];
         userLimit = hasUserLimit();
 
-        require(!userLimit || ((_amount + user.amount) <= poolLimitPerUser), "Deposit: Amount above limit");
+        require(
+            !userLimit || ((_amount + user.amount) <= poolLimitPerUser),
+            "Deposit: Amount above limit"
+        );
 
         _updatePool();
 
         if (user.amount > 0) {
-            uint256 pending = (user.amount * accTokenPerShare) / PRECISION_FACTOR - user.rewardDebt;
+            uint256 pending = (user.amount * accTokenPerShare) /
+                PRECISION_FACTOR -
+                user.rewardDebt;
             if (pending > 0) {
                 rewardToken.safeTransfer(address(msg.sender), pending);
             }
@@ -141,7 +146,11 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
 
         if (_amount > 0) {
             user.amount = user.amount + _amount;
-            stakedToken.safeTransferFrom(address(msg.sender), address(this), _amount);
+            stakedToken.safeTransferFrom(
+                address(msg.sender),
+                address(this),
+                _amount
+            );
         }
 
         user.rewardDebt = (user.amount * accTokenPerShare) / PRECISION_FACTOR;
@@ -159,7 +168,9 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
 
         _updatePool();
 
-        uint256 pending = (user.amount * accTokenPerShare) / PRECISION_FACTOR - user.rewardDebt;
+        uint256 pending = (user.amount * accTokenPerShare) /
+            PRECISION_FACTOR -
+            user.rewardDebt;
 
         if (_amount > 0) {
             user.amount = user.amount - _amount;
@@ -206,8 +217,14 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
      * @dev Callable by owner
      */
     function recoverToken(address _token) external onlyOwner {
-        require(_token != address(stakedToken), "Operations: Cannot recover staked token");
-        require(_token != address(rewardToken), "Operations: Cannot recover reward token");
+        require(
+            _token != address(stakedToken),
+            "Operations: Cannot recover staked token"
+        );
+        require(
+            _token != address(rewardToken),
+            "Operations: Cannot recover reward token"
+        );
 
         uint256 balance = IKIP7(_token).balanceOf(address(this));
         require(balance != 0, "Operations: Cannot recover zero balance");
@@ -232,10 +249,16 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
      * @param _userLimit: whether the limit remains forced
      * @param _poolLimitPerUser: new pool limit per user
      */
-    function updatePoolLimitPerUser(bool _userLimit, uint256 _poolLimitPerUser) external onlyOwner {
+    function updatePoolLimitPerUser(bool _userLimit, uint256 _poolLimitPerUser)
+        external
+        onlyOwner
+    {
         require(userLimit, "Must be set");
         if (_userLimit) {
-            require(_poolLimitPerUser > poolLimitPerUser, "New limit must be higher");
+            require(
+                _poolLimitPerUser > poolLimitPerUser,
+                "New limit must be higher"
+            );
             poolLimitPerUser = _poolLimitPerUser;
         } else {
             userLimit = _userLimit;
@@ -261,10 +284,19 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
      * @param _startBlock: the new start block
      * @param _bonusEndBlock: the new end block
      */
-    function updateStartAndEndBlocks(uint256 _startBlock, uint256 _bonusEndBlock) external onlyOwner {
+    function updateStartAndEndBlocks(
+        uint256 _startBlock,
+        uint256 _bonusEndBlock
+    ) external onlyOwner {
         require(block.number < startBlock, "Pool has started");
-        require(_startBlock < _bonusEndBlock, "New startBlock must be lower than new endBlock");
-        require(block.number < _startBlock, "New startBlock must be higher than current block");
+        require(
+            _startBlock < _bonusEndBlock,
+            "New startBlock must be lower than new endBlock"
+        );
+        require(
+            block.number < _startBlock,
+            "New startBlock must be higher than current block"
+        );
 
         startBlock = _startBlock;
         bonusEndBlock = _bonusEndBlock;
@@ -286,10 +318,18 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
         if (block.number > lastRewardBlock && stakedTokenSupply != 0) {
             uint256 multiplier = _getMultiplier(lastRewardBlock, block.number);
             uint256 ptnReward = multiplier * rewardPerBlock;
-            uint256 adjustedTokenPerShare = accTokenPerShare + (ptnReward * PRECISION_FACTOR) / stakedTokenSupply;
-            return (user.amount * adjustedTokenPerShare) / PRECISION_FACTOR - user.rewardDebt;
+            uint256 adjustedTokenPerShare = accTokenPerShare +
+                (ptnReward * PRECISION_FACTOR) /
+                stakedTokenSupply;
+            return
+                (user.amount * adjustedTokenPerShare) /
+                PRECISION_FACTOR -
+                user.rewardDebt;
         } else {
-            return (user.amount * accTokenPerShare) / PRECISION_FACTOR - user.rewardDebt;
+            return
+                (user.amount * accTokenPerShare) /
+                PRECISION_FACTOR -
+                user.rewardDebt;
         }
     }
 
@@ -310,7 +350,10 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
 
         uint256 multiplier = _getMultiplier(lastRewardBlock, block.number);
         uint256 ptnReward = multiplier * rewardPerBlock;
-        accTokenPerShare = accTokenPerShare + (ptnReward * PRECISION_FACTOR) / stakedTokenSupply;
+        accTokenPerShare =
+            accTokenPerShare +
+            (ptnReward * PRECISION_FACTOR) /
+            stakedTokenSupply;
         lastRewardBlock = block.number;
     }
 
@@ -319,7 +362,11 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
      * @param _from: block to start
      * @param _to: block to finish
      */
-    function _getMultiplier(uint256 _from, uint256 _to) internal view returns (uint256) {
+    function _getMultiplier(uint256 _from, uint256 _to)
+        internal
+        view
+        returns (uint256)
+    {
         if (_to <= bonusEndBlock) {
             return _to - _from;
         } else if (_from >= bonusEndBlock) {
@@ -333,7 +380,10 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
      * @notice Return user limit is set or zero.
      */
     function hasUserLimit() public view returns (bool) {
-        if (!userLimit || (block.number >= (startBlock + numberBlocksForUserLimit))) {
+        if (
+            !userLimit ||
+            (block.number >= (startBlock + numberBlocksForUserLimit))
+        ) {
             return false;
         }
 

@@ -31,8 +31,10 @@ describe('Staking', () => {
   it('should set correct state variables', async () => {
     staking = await Staking.deploy(ptn.address, '1000', '0');
     await staking.deployed();
-    expect(await ptn.hasRole((await ptn.DEFAULT_ADMIN_ROLE()),
-      minter.address)).to.be.equal(true);
+    expect(await ptn.hasRole(
+      (await ptn.DEFAULT_ADMIN_ROLE()),
+      minter.address,
+    )).to.be.equal(true);
     await ptn.grantRole((await ptn.MINTER_ROLE()), staking.address);
 
     const ptnAddress = await staking.ptn();

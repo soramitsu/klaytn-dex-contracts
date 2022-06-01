@@ -8,8 +8,7 @@ import "../interfaces/IKIP7.sol";
 contract StakingFactory is Ownable {
     event NewStakingContract(address indexed staking);
 
-    constructor() {
-    }
+    constructor() {}
 
     /*
      * @notice Deploy the pool
@@ -37,10 +36,11 @@ contract StakingFactory is Ownable {
         require(IKIP7(_rewardToken).totalSupply() >= 0);
         require(_stakedToken != _rewardToken, "Tokens must be be different");
 
-
         staking = address(
             new StakingInitializable{
-                salt: keccak256(abi.encodePacked(_stakedToken, _rewardToken, _startBlock))
+                salt: keccak256(
+                    abi.encodePacked(_stakedToken, _rewardToken, _startBlock)
+                )
             }()
         );
 
