@@ -59,36 +59,36 @@ describe('Farming', () => {
     const lp25 = await lpFactory.deploy(ethers.utils.parseEther('1000000'));
     const lp26 = await lpFactory.deploy(ethers.utils.parseEther('1000000'));
     const lp27 = await lpFactory.deploy(ethers.utils.parseEther('1000000'));
-    await chef.add('2000', lp1.address, true);
-    await chef.add('1000', lp2.address, true);
-    await chef.add('500', lp3.address, true);
-    await chef.add('500', lp4.address, true);
-    await chef.add('500', lp5.address, true);
-    await chef.add('500', lp6.address, true);
-    await chef.add('500', lp7.address, true);
-    await chef.add('100', lp8.address, true);
-    await chef.add('100', lp9.address, true);
-    await chef.add('2000', lp10.address, true);
-    await chef.add('1000', lp11.address, true);
-    await chef.add('500', lp12.address, true);
-    await chef.add('500', lp13.address, true);
-    await chef.add('500', lp14.address, true);
-    await chef.add('500', lp15.address, true);
-    await chef.add('500', lp16.address, true);
-    await chef.add('100', lp17.address, true);
-    await chef.add('100', lp18.address, true);
-    await chef.add('2000', lp19.address, true);
-    await chef.add('1000', lp20.address, true);
-    await chef.add('500', lp21.address, true);
-    await chef.add('500', lp22.address, true);
-    await chef.add('500', lp23.address, true);
-    await chef.add('500', lp24.address, true);
-    await chef.add('500', lp25.address, true);
-    await chef.add('100', lp26.address, true);
-    await chef.add('100', lp27.address, true);
+    await chef.add('2000', lp1.address, true, 1);
+    await chef.add('1000', lp2.address, true, 1);
+    await chef.add('500', lp3.address, true, 1);
+    await chef.add('500', lp4.address, true, 1);
+    await chef.add('500', lp5.address, true, 1);
+    await chef.add('500', lp6.address, true, 1);
+    await chef.add('500', lp7.address, true, 1);
+    await chef.add('100', lp8.address, true, 1);
+    await chef.add('100', lp9.address, true, 1);
+    await chef.add('2000', lp10.address, true, 1);
+    await chef.add('1000', lp11.address, true, 1);
+    await chef.add('500', lp12.address, true, 1);
+    await chef.add('500', lp13.address, true, 1);
+    await chef.add('500', lp14.address, true, 1);
+    await chef.add('500', lp15.address, true, 1);
+    await chef.add('500', lp16.address, true, 1);
+    await chef.add('100', lp17.address, true, 1);
+    await chef.add('100', lp18.address, true, 1);
+    await chef.add('2000', lp19.address, true, 1);
+    await chef.add('1000', lp20.address, true, 1);
+    await chef.add('500', lp21.address, true, 1);
+    await chef.add('500', lp22.address, true, 1);
+    await chef.add('500', lp23.address, true, 1);
+    await chef.add('500', lp24.address, true, 1);
+    await chef.add('500', lp25.address, true, 1);
+    await chef.add('100', lp26.address, true, 1);
+    await chef.add('100', lp27.address, true, 1);
     expect(await chef.poolLength()).to.be.equal(28);
 
-    await expect(chef.add('100', lp2.address, false))
+    await expect(chef.add('100', lp2.address, false, 1))
       .to.be.revertedWith('Token already added');
 
     await advanceBlockTo(170);
@@ -107,9 +107,9 @@ describe('Farming', () => {
   });
 
   it('deposit/withdraw', async () => {
-    await chef.add(1000, lp1.address, true);
-    await chef.add(1000, lp2.address, true);
-    await chef.add(1000, lp3.address, true);
+    await chef.add(1000, lp1.address, true, 1);
+    await chef.add(1000, lp2.address, true, 1);
+    await chef.add(1000, lp3.address, true, 1);
 
     await lp1.connect(alice).approve(chef.address, '100');
     await chef.connect(alice).deposit(1, '20');
@@ -132,7 +132,7 @@ describe('Farming', () => {
   });
 
   it('deposit/withdraw:fail', async () => {
-    await chef.add(1000, lp1.address, true);
+    await chef.add(1000, lp1.address, true, 1);
     await lp1.connect(alice).approve(chef.address, '100');
 
     await chef.connect(alice).deposit(1, '20');
@@ -148,9 +148,9 @@ describe('Farming', () => {
   });
 
   it('staking/unstaking', async () => {
-    await chef.add('1000', lp1.address, true);
-    await chef.add('1000', lp2.address, true);
-    await chef.add('1000', lp3.address, true);
+    await chef.add('1000', lp1.address, true, 1);
+    await chef.add('1000', lp2.address, true, 1);
+    await chef.add('1000', lp3.address, true, 1);
 
     await lp1.connect(alice).approve(chef.address, '10');
     await chef.connect(alice).deposit(1, '2'); // 0
@@ -168,9 +168,9 @@ describe('Farming', () => {
   });
 
   it('update multiplier', async () => {
-    await chef.add('1000', lp1.address, true);
-    await chef.add('1000', lp2.address, true);
-    await chef.add('1000', lp3.address, true);
+    await chef.add('1000', lp1.address, true, 1);
+    await chef.add('1000', lp2.address, true, 1);
+    await chef.add('1000', lp3.address, true, 1);
 
     await lp1.connect(alice).approve(chef.address, '100');
     await lp1.connect(bob).approve(chef.address, '100');
@@ -184,7 +184,8 @@ describe('Farming', () => {
 
     await chef.connect(alice).enterStaking('50');
     await chef.connect(bob).enterStaking('100');
-    await chef.updateMultiplier('0');
+    await chef.updateMultiplier(0, 0);
+    await chef.updateMultiplier(1, 0);
 
     await chef.connect(alice).enterStaking(0);
     await chef.connect(bob).enterStaking(0);

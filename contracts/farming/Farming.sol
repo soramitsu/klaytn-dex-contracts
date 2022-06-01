@@ -29,6 +29,7 @@ contract Farming is Ownable, ReentrancyGuard{
     // Info of each pool.
     struct PoolInfo {
         address lpToken; // Address of LP token contract.
+        uint64 bonusMultiplier; // Bonus multiplier for the farming pool
         uint256 stakingTokenTotalAmount;
         uint64 allocPoint; // How many allocation points assigned to this pool. PTNs to distribute per block.
         uint64 lastRewardBlock; // Last block number that PTNs distribution occurs.
@@ -40,10 +41,6 @@ contract Farming is Ownable, ReentrancyGuard{
 
     // PTN tokens created per block.
     uint256 public ptnPerBlock;
-    // Bonus muliplier for early ptn makers.
-    uint256 public BONUS_MULTIPLIER = 1;
-    // The migrator contract. It has a lot of power. Can only be set through governance (owner).
-
     // Info of each pool.
     PoolInfo[] public poolInfo;
     mapping (address => bool) public addedTokens;
@@ -55,6 +52,10 @@ contract Farming is Ownable, ReentrancyGuard{
     uint256 public startBlock;
 
     uint256 private constant ACC_PRECISION = 1e12;
+
+    event AddPool(uint256 indexed pid, uint256 allocPoint, address indexed token, uint256 bonus);
+    event SetPool(uint256 indexed pid, uint256 allocPoint);
+    event UpdatePool(uint256 indexed pid, uint256 lastRewardBlock, uint256 lpSupply, uint256 accPtnPerShare);
 
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
@@ -76,18 +77,20 @@ contract Farming is Ownable, ReentrancyGuard{
         // staking pool
         poolInfo.push(PoolInfo({
             lpToken: _ptn,
+            bonusMultiplier: 1,
             stakingTokenTotalAmount: 0,
             allocPoint: 1000,
             lastRewardBlock: startBlock.toUint64(),
             accPtnPerShare: 0
         }));
-
+        addedTokens[_ptn] == true;
         totalAllocPoint = 1000;
+        emit AddPool(poolInfo.length - 1, 1000, _ptn, 1);
 
     }
 
-    function updateMultiplier(uint256 multiplierNumber) public onlyOwner {
-        BONUS_MULTIPLIER = multiplierNumber;
+    function updateMultiplier(uint256 _pid, uint256 _multiplier) public onlyOwner {
+        poolInfo[_pid].bonusMultiplier = _multiplier.toUint64();
     }
 
     function updatePtnPerBlock(uint256 _ptnPerBlock) external onlyOwner {
@@ -97,17 +100,25 @@ contract Farming is Ownable, ReentrancyGuard{
         ptnPerBlock = _ptnPerBlock;
     }
 
-     // Return reward multiplier over the given _from to _to block.
-    function getMultiplier(uint256 _from, uint256 _to) public view returns (uint256) {
-        return (_to - _from) * BONUS_MULTIPLIER;
+    /// @dev Returns reward multiplier over the given `_from` to `_to` block for `_pid` pool.
+    /// @param _pid The id of the pool. See `poolInfo`.
+    /// @param _from Start block number
+    /// @param _to End block number
+    function getMultiplier(uint256 _pid, uint256 _from, uint256 _to) public view returns (uint256) {
+        return (_to - _from) * poolInfo[_pid].bonusMultiplier;
     }
 
+    /// @dev Returns the number of farming pools.
     function poolLength() external view returns (uint256) {
         return poolInfo.length;
     }
 
-    // Add a new lp to the pool. Can only be called by the owner.
-    function add(uint256 _allocPoint, address _lpToken, bool _withUpdate) public onlyOwner {
+    /// @dev Add a new pool. Can only be called by the owner.
+    /// @param _allocPoint Number of allocation points for the new pool.
+    /// @param _lpToken Address of the LP KIP7 token.
+    /// @param _withUpdate Whether call "massUpdatePools" operation.
+    /// @param _multiplier  The pool reward multipler.
+    function add(uint256 _allocPoint, address _lpToken, bool _withUpdate, uint256 _multiplier) public onlyOwner {
         require(addedTokens[_lpToken] == false, "Token already added");
         if (_withUpdate) {
             massUpdatePools();
@@ -116,6 +127,7 @@ contract Farming is Ownable, ReentrancyGuard{
         totalAllocPoint = totalAllocPoint + _allocPoint;
         poolInfo.push(PoolInfo({
             lpToken: _lpToken,
+            bonusMultiplier: _multiplier.toUint64(),
             stakingTokenTotalAmount: 0,
             allocPoint: _allocPoint.toUint64(),
             lastRewardBlock: lastRewardBlock.toUint64(),
@@ -123,9 +135,13 @@ contract Farming is Ownable, ReentrancyGuard{
         }));
         updateStakingPool();
         addedTokens[_lpToken] = true;
+        emit AddPool(poolInfo.length - 1, _allocPoint, _lpToken, _multiplier);
     }
 
-    // Update the given pool's PTN allocation point. Can only be called by the owner.
+    /// @notice Update the given pool's PTN allocation point. Can only be called by the owner.
+    /// @param _pid The id of the pool. See `poolInfo`.
+    /// @param _allocPoint New number of allocation points for the pool.
+    /// @param _withUpdate Whether call "massUpdatePools" operation.
     function set(uint256 _pid, uint256 _allocPoint, bool _withUpdate) public onlyOwner {
         if (_withUpdate) {
             massUpdatePools();
@@ -136,6 +152,7 @@ contract Farming is Ownable, ReentrancyGuard{
             totalAllocPoint = totalAllocPoint - prevAllocPoint + _allocPoint;
             updateStakingPool();
         }
+        emit SetPool(_pid, _allocPoint);
     }
 
     function updateStakingPool() internal {
@@ -147,7 +164,7 @@ contract Farming is Ownable, ReentrancyGuard{
         }
     }
 
-    // Update reward variables for all pools. Be careful of gas spending!
+    /// @dev Update PTN reward for all the active pools. Be careful of gas spending!
     function massUpdatePools() public {
         uint256 length = poolInfo.length;
         for (uint256 pid = 0; pid < length; ++pid) {
@@ -155,22 +172,26 @@ contract Farming is Ownable, ReentrancyGuard{
         }
     }
 
-    // Update reward variables of the given pool to be up-to-date.
+    /// @notice Update reward variables for the given pool.
+    /// @param _pid The id of the pool. See `poolInfo`.
     function updatePool(uint256 _pid) public {
         PoolInfo storage pool = poolInfo[_pid];
         if (block.number > pool.lastRewardBlock) {
             uint256 lpSupply = IKIP7(pool.lpToken).balanceOf(address(this));
             if (lpSupply > 0) {
-                uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
+                uint256 multiplier = getMultiplier(_pid, pool.lastRewardBlock, block.number);
                 uint256 ptnReward = (multiplier * ptnPerBlock * pool.allocPoint) / totalAllocPoint;
                 ptn.mint(address(this), ptnReward);
                 pool.accPtnPerShare = pool.accPtnPerShare + (ptnReward * ACC_PRECISION / lpSupply).toUint128();
             }
             pool.lastRewardBlock = (block.number).toUint64();
+            emit UpdatePool(_pid, pool.lastRewardBlock, lpSupply, pool.accPtnPerShare);
         }
     }
 
-    // Deposit LP tokens to Farming Contract for PTN allocation.
+    /// @dev Deposit LP tokens to pool.
+    /// @param _pid The id of the pool. See `poolInfo`.
+    /// @param _amount Amount of LP tokens to deposit.
     function deposit(uint256 _pid, uint256 _amount) external nonReentrant {
 
         require (_pid != 0, 'deposit PTN by staking');
@@ -194,7 +215,9 @@ contract Farming is Ownable, ReentrancyGuard{
         emit Deposit(msg.sender, _pid, _amount);
     }
 
-    // Withdraw LP tokens from Farming Contract.
+    /// @dev Withdraw LP tokens from pool.
+    /// @param _pid The id of the pool. See `poolInfo`.
+    /// @param _amount Amount of LP tokens to withdraw.
     function withdraw(uint256 _pid, uint256 _amount) external nonReentrant {
 
         require (_pid != 0, 'withdraw PTN by unstaking');
@@ -216,7 +239,8 @@ contract Farming is Ownable, ReentrancyGuard{
         emit Withdraw(msg.sender, _pid, _amount);
     }
 
-    // Stake PTN tokens to Farming Contract
+    /// @dev Stake PTN tokens to the separate PTN pool
+    /// @param _amount Amount of PTN tokens to stake.
     function enterStaking(uint256 _amount) external nonReentrant {
         PoolInfo storage pool = poolInfo[0];
         UserInfo storage user = userInfo[0][msg.sender];
@@ -236,7 +260,8 @@ contract Farming is Ownable, ReentrancyGuard{
         emit Deposit(msg.sender, 0, _amount);
     }
 
-    // Withdraw PTN tokens from Farming Contract.
+    /// @dev Withdraw PTN tokens from the separate pool.
+    /// @param _amount Amount of PTN tokens to unstake.
     function leaveStaking(uint256 _amount) external nonReentrant {
         PoolInfo storage pool = poolInfo[0];
         UserInfo storage user = userInfo[0][msg.sender];
@@ -255,7 +280,9 @@ contract Farming is Ownable, ReentrancyGuard{
         emit Withdraw(msg.sender, 0, _amount);
     }
 
-    // Safe boo transfer function, just in case if rounding error causes pool to not have enough PTNs.
+    /// @dev Safe PTN transfer function, just in case if rounding error causes pool to not have enough PTNs.
+    /// @param _to The PTN receiver address.
+    /// @param _amount of PTN to transfer.
     function safePtnTransfer(address _to, uint256 _amount) internal {
         uint256 ptnBal = ptn.balanceOf(address(this));
         if (_amount > ptnBal) {
@@ -264,7 +291,8 @@ contract Farming is Ownable, ReentrancyGuard{
             ptn.safeTransfer(_to, _amount);
         }
     }
-    // Withdraw without caring about rewards. EMERGENCY ONLY.
+    /// @dev Withdraw without caring about the rewards. EMERGENCY ONLY.
+    /// @param _pid The id of the pool. See `poolInfo`.
     function emergencyWithdraw(uint256 _pid) public nonReentrant {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
@@ -279,14 +307,16 @@ contract Farming is Ownable, ReentrancyGuard{
 
     }
 
-    // View function to see pending CAKEs on frontend.
+    /// @dev View function for checking pending PTN rewards.
+    /// @param _pid The id of the pool. See `poolInfo`.
+    /// @param _user Address of the user.
     function pendingPtn(uint256 _pid, address _user) external view returns (uint256) {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][_user];
         uint256 accPtnPerShare = pool.accPtnPerShare;
         uint256 lpSupply = IKIP7(pool.lpToken).balanceOf(address(this));
         if (block.number > pool.lastRewardBlock && lpSupply != 0) {
-            uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
+            uint256 multiplier = getMultiplier(_pid, pool.lastRewardBlock, block.number);
             uint256 ptnReward = (multiplier * ptnPerBlock * pool.allocPoint) / totalAllocPoint;
             accPtnPerShare = accPtnPerShare + (ptnReward * ACC_PRECISION / lpSupply);
         }

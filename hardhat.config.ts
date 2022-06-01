@@ -45,7 +45,7 @@ const config: HardhatUserConfig = {
   networks: {
     // hardhat: {
     //   forking: {
-    //     url: 'https://api.baobab.klaytn.net:8651/',
+    //     url: 'https://baobab.fandom.finance/archive',
     //   },
     // },
     baobab: {
@@ -59,7 +59,7 @@ const config: HardhatUserConfig = {
   gasReporter: {
     enabled: process.env.REPORT_GAS !== 'false',
     currency: 'USD',
-    gasPrice: 750,
+    gasPrice: 250,
   },
 };
 
