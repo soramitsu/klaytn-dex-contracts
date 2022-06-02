@@ -84,8 +84,8 @@ export async function advanceBlockTo(blockNumber: number) {
 
 export async function mineBlock(timestamp: number): Promise<void> {
   // eslint-disable-next-line no-async-promise-executor
-  ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]);
-  ethers.provider.send('evm_mine', []);
+  await ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]);
+  await ethers.provider.send('evm_mine', []);
 }
 
 export function encodePrice(reserve0: BigNumber, reserve1: BigNumber) {
