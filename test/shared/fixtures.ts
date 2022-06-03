@@ -1,39 +1,17 @@
-import { Contract } from 'ethers';
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { FactoryFixture, PairFixture, RouterFixture} from './interfaces';
 
-interface FactoryFixture {
-  factory: Contract
-}
-
-interface PairFixture extends FactoryFixture {
-  factory: Contract
-  token0: Contract
-  token1: Contract
-  pair: Contract
-}
-
-interface RouterFixture {
-  token0: Contract
-  token1: Contract
-  WKLAY: Contract
-  WKLAYPartner: Contract
-  factory: Contract
-  router: Contract
-  pair: Contract
-  WKLAYPair: Contract
-}
-
-export async function factoryFixture(deployer: SignerWithAddress): Promise<Contract> {
+export async function factoryFixture(deployer: SignerWithAddress): Promise<FactoryFixture> {
   const Factory = await ethers.getContractFactory('DexFactory');
   const factory = await Factory.deploy(await deployer.getAddress());
-  return factory;
+  return { factory };
 }
 
 export async function pairFixture(
   deployer: SignerWithAddress,
 ): Promise<PairFixture> {
-  const factory = await factoryFixture(deployer);
+  const { factory } = await factoryFixture(deployer);
   const tokenFactory = await ethers.getContractFactory('KIP7Mock');
   const tokenA = await tokenFactory.deploy(ethers.utils.parseEther('10000'));
   const tokenB = await tokenFactory.deploy(ethers.utils.parseEther('10000'));
@@ -60,7 +38,7 @@ export async function routerFixture(deployer: SignerWithAddress): Promise<Router
   const WKLAYPartner = await tokenFactory.deploy(ethers.utils.parseEther('10000'));
 
   // deploy factory
-  const factory = await factoryFixture(deployer);
+  const { factory } = await factoryFixture(deployer);
 
   // deploy router
   const routerFactory = await ethers.getContractFactory('DexRouter');

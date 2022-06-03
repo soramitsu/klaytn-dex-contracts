@@ -16,7 +16,7 @@ describe('DexFactory', () => {
   let factory: Contract;
   beforeEach(async () => {
     [wallet, other] = await ethers.getSigners();
-    factory = await factoryFixture(wallet);
+    factory = (await factoryFixture(wallet)).factory;
   });
 
   it('feeTo, feeToSetter, allPairsLength', async () => {

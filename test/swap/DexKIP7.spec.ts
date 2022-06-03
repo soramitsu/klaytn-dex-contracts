@@ -5,10 +5,12 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import {
   keccak256, defaultAbiCoder, toUtf8Bytes, hexlify,
 } from 'ethers/lib/utils';
-import { constants, Contract, ContractFactory } from 'ethers';
+import { constants } from 'ethers';
 import { ecsign } from 'ethereumjs-util';
 import { getApprovalDigest } from '../shared/utilities';
 import { factoryFixture } from '../shared/fixtures';
+import { DexKIP7Test } from '../../typechain/DexKIP7Test';
+import { DexKIP7Test__factory } from '../../typechain/factories/DexKIP7Test__factory';
 
 dotenv.config();
 
@@ -16,8 +18,8 @@ const TOTAL_SUPPLY = ethers.utils.parseEther('10000');
 const TEST_AMOUNT = ethers.utils.parseEther('10');
 
 describe('DexKIP7', () => {
-  let tokenFactory: ContractFactory;
-  let token: Contract;
+  let tokenFactory: DexKIP7Test__factory;
+  let token: DexKIP7Test;
   let wallet: SignerWithAddress;
   let other: SignerWithAddress;
   beforeEach(async () => {
@@ -72,7 +74,7 @@ describe('DexKIP7', () => {
   it('safeTransfer:fail', async () => {
     await expect(token['safeTransfer(address,uint256)'](constants.AddressZero, TEST_AMOUNT))
       .to.be.revertedWith('KIP7: transfer to the zero address');
-    const factory = await factoryFixture(wallet);
+    const { factory } = await factoryFixture(wallet);
     await expect(token['safeTransfer(address,uint256)'](factory.address, TEST_AMOUNT))
       .to.be.revertedWith("Transaction reverted: function selector was not recognized and there's no fallback function");
   });
@@ -121,7 +123,7 @@ describe('DexKIP7', () => {
     const digest = await getApprovalDigest(
       token,
       { owner: wallet.address, spender: other.address, value: TEST_AMOUNT },
-      nonce,
+      nonce.toNumber(),
       deadline,
       31337,
     );
@@ -153,7 +155,7 @@ describe('DexKIP7', () => {
     const digest = await getApprovalDigest(
       token,
       { owner: wallet.address, spender: other.address, value: TEST_AMOUNT },
-      nonce,
+      nonce.toNumber(),
       deadline,
       31337,
     );
@@ -180,7 +182,7 @@ describe('DexKIP7', () => {
     const digest = await getApprovalDigest(
       token,
       { owner: wallet.address, spender: other.address, value: TEST_AMOUNT },
-      nonce,
+      nonce.toNumber(),
       deadline,
       31335,
     );
