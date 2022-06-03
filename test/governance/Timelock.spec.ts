@@ -1,90 +1,44 @@
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { Contract, ContractFactory, constants } from 'ethers';
+import { constants } from 'ethers';
 import { expect } from 'chai';
-import { mineBlock } from '../shared/utilities';
+import { mineBlock, genOperation, genOperationBatch } from '../shared/utilities';
+import { Operation, BatchOperation } from '../shared/interfaces';
+import { TimelockController } from '../../typechain/TimelockController';
+import { Implementation2 } from '../../typechain/Implementation2';
+import { CallReceiverMock } from '../../typechain/CallReceiverMock';
+import { TimelockController__factory } from '../../typechain/factories/TimelockController__factory';
+import { Implementation2__factory } from '../../typechain/factories/Implementation2__factory';
+import { CallReceiverMock__factory } from '../../typechain/factories/CallReceiverMock__factory';
 
 const ZERO_BYTES32 = constants.HashZero;
 const MINDELAY = 86400;
-const coder = new ethers.utils.AbiCoder();
 
-function genOperation(
-  target: string,
-  value: string | number,
-  data: string,
-  predecessor: string,
-  salt: string,
-) {
-  const id = ethers.utils.keccak256(coder.encode([
-    'address',
-    'uint256',
-    'bytes',
-    'uint256',
-    'bytes32',
-  ], [
-    target,
-    value,
-    data,
-    predecessor,
-    salt,
-  ]));
-  return {
-    id, target, value, data, predecessor, salt,
-  };
-}
-
-function genOperationBatch(
-  targets: any[],
-  values: any[],
-  datas: any[],
-  predecessor: string,
-  salt: string,
-) {
-  const id = ethers.utils.keccak256(coder.encode([
-    'address[]',
-    'uint256[]',
-    'bytes[]',
-    'uint256',
-    'bytes32',
-  ], [
-    targets,
-    values,
-    datas,
-    predecessor,
-    salt,
-  ]));
-  return {
-    id, targets, values, datas, predecessor, salt,
-  };
-}
 let TIMELOCK_ADMIN_ROLE: string;
 let PROPOSER_ROLE: string;
 let EXECUTOR_ROLE: string;
-let TimelockController: ContractFactory;
-let CallReceiverMock: ContractFactory;
-let Implementation2: ContractFactory;
-let timelock: Contract;
-let callreceivermock: Contract;
-let implementation2: Contract;
+let TimelockControllerF: TimelockController__factory;
+let CallReceiverMockF: CallReceiverMock__factory;
+let Implementation2F: Implementation2__factory;
+let timelock: TimelockController;
+let callreceivermock: CallReceiverMock;
+let implementation2: Implementation2;
 let admin: SignerWithAddress;
 let proposer: SignerWithAddress;
 let executor: SignerWithAddress;
 let other: SignerWithAddress;
-let operation: any;
-let operation1: any;
-let operation2: any;
 
 describe('TimelockController', () => {
   before(async () => {
-    TimelockController = await ethers.getContractFactory('TimelockController');
-    CallReceiverMock = await ethers.getContractFactory('CallReceiverMock');
-    Implementation2 = await ethers.getContractFactory('Implementation2');
+    TimelockControllerF = await ethers.getContractFactory('TimelockController');
+    CallReceiverMockF = await ethers.getContractFactory('CallReceiverMock');
+    Implementation2F = await ethers.getContractFactory('Implementation2');
     [admin, proposer, executor, other] = await ethers.getSigners();
   });
 
   beforeEach(async () => {
     // Deploy new timelock
-    timelock = await TimelockController.deploy(
+    timelock = await TimelockControllerF.deploy(
       MINDELAY,
       MINDELAY + 86400,
       [proposer.address],
@@ -94,8 +48,8 @@ describe('TimelockController', () => {
     PROPOSER_ROLE = await timelock.PROPOSER_ROLE();
     EXECUTOR_ROLE = await timelock.EXECUTOR_ROLE();
     // Mocks
-    callreceivermock = await CallReceiverMock.deploy();
-    implementation2 = await Implementation2.deploy();
+    callreceivermock = await CallReceiverMockF.deploy();
+    implementation2 = await Implementation2F.deploy();
   });
 
   it('initial state', async () => {
@@ -107,7 +61,7 @@ describe('TimelockController', () => {
   describe('methods', () => {
     describe('operation hashing', () => {
       it('hashOperation', async () => {
-        operation = genOperation(
+        const operation : Operation = genOperation(
           '0x29cebefe301c6ce1bb36b58654fea275e1cacc83',
           '0xf94fdd6e21da21d2',
           '0xa3bc5104',
@@ -124,7 +78,7 @@ describe('TimelockController', () => {
       });
 
       it('hashOperationBatch', async () => {
-        operation = genOperationBatch(
+        const operation : BatchOperation = genOperationBatch(
           Array(8).fill('0x2d5f21620e56531c1d59c2df9b8e95d129571f71'),
           Array(8).fill('0x2b993cfce932ccee'),
           Array(8).fill('0xcf51966b'),
@@ -142,6 +96,7 @@ describe('TimelockController', () => {
     });
     describe('simple', () => {
       describe('schedule', () => {
+        let operation: Operation;
         beforeEach(async () => {
           operation = genOperation(
             '0x31754f590B97fD975Eb86938f18Cc304E264D2F2',
@@ -228,6 +183,7 @@ describe('TimelockController', () => {
       });
 
       describe('execute', () => {
+        let operation: Operation;
         beforeEach(async () => {
           operation = genOperation(
             '0xAe22104DCD970750610E6FE15E623468A98b15f7',
@@ -278,7 +234,7 @@ describe('TimelockController', () => {
 
           it('revert if execution comes too early 2/2', async () => {
             const timestamp = await timelock.getTimestamp(operation.id);
-            await mineBlock(timestamp - 5); // -1 is too tight, test sometime fails
+            await mineBlock(timestamp.toNumber() - 5); // -1 is too tight, test sometime fails
 
             await expect(
               timelock.connect(executor).execute(
@@ -296,8 +252,7 @@ describe('TimelockController', () => {
           describe('on time', () => {
             beforeEach(async () => {
               const timestamP = await timelock.getTimestamp(operation.id);
-              const tp = ethers.BigNumber.from(timestamP).toNumber();
-              await mineBlock(tp);
+              await mineBlock(timestamP.toNumber());
             });
 
             it('executor can reveal', async () => {
@@ -337,6 +292,7 @@ describe('TimelockController', () => {
 
     describe('batch', () => {
       describe('schedule', () => {
+        let operation: BatchOperation;
         beforeEach(async () => {
           operation = genOperationBatch(
             Array(8).fill('0xEd912250835c812D4516BBD80BdaEA1bB63a293C'),
@@ -448,6 +404,7 @@ describe('TimelockController', () => {
       });
 
       describe('execute', () => {
+        let operation: BatchOperation;
         beforeEach(async () => {
           operation = genOperationBatch(
             Array(8).fill('0x76E53CcEb05131Ef5248553bEBDb8F70536830b1'),
@@ -604,9 +561,9 @@ describe('TimelockController', () => {
               0,
             ],
             [
-              callreceivermock.interface.encodeFunctionData('mockFunction', []),
-              callreceivermock.interface.encodeFunctionData('mockFunctionThrows', []),
-              callreceivermock.interface.encodeFunctionData('mockFunction', []),
+              callreceivermock.interface.encodeFunctionData('mockFunction'),
+              callreceivermock.interface.encodeFunctionData('mockFunctionThrows'),
+              callreceivermock.interface.encodeFunctionData('mockFunction'),
             ],
             ZERO_BYTES32,
             '0x8ac04aa0d6d66b8812fb41d39638d37af0a9ab11da507afd65c509f8ed079d3e',
@@ -640,6 +597,7 @@ describe('TimelockController', () => {
     });
 
     describe('cancel', () => {
+      let operation: Operation;
       beforeEach(async () => {
         operation = genOperation(
           '0xC6837c44AA376dbe1d2709F13879E040CAb653ca',
@@ -684,372 +642,407 @@ describe('TimelockController', () => {
     });
   });
 
-  //   describe('maintenance', () => {
-  //     it('prevent unauthorized maintenance', async () => {
-  //       await expectRevert(
-  //         timelock.updateDelay(0, { from: other }),
-  //         'TimelockController: caller must be timelock',
-  //       );
-  //     });
+  describe('maintenance', () => {
+    it('prevent unauthorized maintenance', async () => {
+      await expect(
+        timelock.connect(other).updateDelay(0, 0),
+      ).to.be.revertedWith(
+        'TimelockController: caller must be timelock',
+      );
+    });
 
-  //     it('timelock scheduled maintenance', async () => {
-  //       const newDelay = time.duration.hours(6);
-  //       const operation = genOperation(
-  //         timelock.address,
-  //         0,
-  //         timelock.contract.methods.updateDelay(newDelay.toString()).encodeABI(),
-  //         ZERO_BYTES32,
-  //         '0xf8e775b2c5f4d66fb5c7fa800f35ef518c262b6014b3c0aee6ea21bff157f108',
-  //       );
+    it('timelock scheduled maintenance', async () => {
+      const newDelay = 60 * 60 * 6;
+      const operation: Operation = genOperation(
+        timelock.address,
+        0,
+        timelock.interface.encodeFunctionData('updateDelay', [newDelay.toString(), newDelay + 86400]),
+        ZERO_BYTES32,
+        '0xf8e775b2c5f4d66fb5c7fa800f35ef518c262b6014b3c0aee6ea21bff157f108',
+      );
 
-  //       await timelock.schedule(
-  //         operation.target,
-  //         operation.value,
-  //         operation.data,
-  //         operation.predecessor,
-  //         operation.salt,
-  //         MINDELAY,
-  //         { from: proposer },
-  //       );
-  //       await time.increase(MINDELAY);
-  //       const receipt = await timelock.execute(
-  //         operation.target,
-  //         operation.value,
-  //         operation.data,
-  //         operation.predecessor,
-  //         operation.salt,
-  //         { from: executor },
-  //       );
-  //       expectEvent(receipt, 'MinDelayChange', { newDuration: newDelay.toString(), oldDuration: MINDELAY });
+      await timelock.connect(proposer).schedule(
+        operation.target,
+        operation.value,
+        operation.data,
+        operation.predecessor,
+        operation.salt,
+        MINDELAY,
+      );
+      const bn = await ethers.provider.getBlockNumber();
+      let { timestamp } = await ethers.provider.getBlock(bn);
+      timestamp = ethers.BigNumber.from(timestamp).toNumber();
+      await mineBlock(MINDELAY + timestamp);
+      await expect(timelock.connect(executor).execute(
+        operation.target,
+        operation.value,
+        operation.data,
+        operation.predecessor,
+        operation.salt,
+      )).to.emit(timelock, 'DelayChange')
+        .withArgs(
+          MINDELAY,
+          newDelay.toString(),
+          MINDELAY + 86400,
+          newDelay + 86400,
+        );
 
-  //       expect(await timelock.getMinDelay()).to.be.equal(newDelay);
-  //     });
-  //   });
+      expect((await timelock.getDelay()).toString())
+        .to.be.equal(`${newDelay},${newDelay + 86400}`);
+    });
+  });
 
-  //   describe('dependency', () => {
-  //     beforeEach(async () => {
-  //       operation1 = genOperation(
-  //         '0xdE66bD4c97304200A95aE0AadA32d6d01A867E39',
-  //         0,
-  //         '0x01dc731a',
-  //         ZERO_BYTES32,
-  //         '0x64e932133c7677402ead2926f86205e2ca4686aebecf5a8077627092b9bb2feb',
-  //       );
-  //       operation2 = genOperation(
-  //         '0x3c7944a3F1ee7fc8c5A5134ba7c79D11c3A1FCa3',
-  //         0,
-  //         '0x8f531849',
-  //         operation1.id,
-  //         '0x036e1311cac523f9548e6461e29fb1f8f9196b91910a41711ea22f5de48df07d',
-  //       );
-  //       await timelock.schedule(
-  //         operation1.target,
-  //         operation1.value,
-  //         operation1.data,
-  //         operation1.predecessor,
-  //         operation1.salt,
-  //         MINDELAY,
-  //         { from: proposer },
-  //       );
-  //       await timelock.schedule(
-  //         operation2.target,
-  //         operation2.value,
-  //         operation2.data,
-  //         operation2.predecessor,
-  //         operation2.salt,
-  //         MINDELAY,
-  //         { from: proposer },
-  //       );
-  //       await time.increase(MINDELAY);
-  //     });
+  describe('dependency', () => {
+    let operation1: Operation;
+    let operation2: Operation;
+    beforeEach(async () => {
+      operation1 = genOperation(
+        '0xdE66bD4c97304200A95aE0AadA32d6d01A867E39',
+        0,
+        '0x01dc731a',
+        ZERO_BYTES32,
+        '0x64e932133c7677402ead2926f86205e2ca4686aebecf5a8077627092b9bb2feb',
+      );
+      operation2 = genOperation(
+        '0x3c7944a3F1ee7fc8c5A5134ba7c79D11c3A1FCa3',
+        0,
+        '0x8f531849',
+        operation1.id,
+        '0x036e1311cac523f9548e6461e29fb1f8f9196b91910a41711ea22f5de48df07d',
+      );
+      await timelock.connect(proposer).schedule(
+        operation1.target,
+        operation1.value,
+        operation1.data,
+        operation1.predecessor,
+        operation1.salt,
+        MINDELAY,
+      );
+      await timelock.connect(proposer).schedule(
+        operation2.target,
+        operation2.value,
+        operation2.data,
+        operation2.predecessor,
+        operation2.salt,
+        MINDELAY,
+      );
+      const bn = await ethers.provider.getBlockNumber();
+      let { timestamp } = await ethers.provider.getBlock(bn);
+      timestamp = ethers.BigNumber.from(timestamp).toNumber();
+      await mineBlock(MINDELAY + timestamp);
+    });
 
-  //     it('cannot execute before dependency', async () => {
-  //       await expectRevert(
-  //         timelock.execute(
-  //           operation2.target,
-  //           operation2.value,
-  //           operation2.data,
-  //           operation2.predecessor,
-  //           operation2.salt,
-  //           { from: executor },
-  //         ),
-  //         'TimelockController: missing dependency',
-  //       );
-  //     });
+    it('cannot execute before dependency', async () => {
+      await expect(
+        timelock.connect(executor).execute(
+          operation2.target,
+          operation2.value,
+          operation2.data,
+          operation2.predecessor,
+          operation2.salt,
+        ),
+      ).to.be.revertedWith(
+        'TimelockController: missing dependency',
+      );
+    });
 
-  //     it('can execute after dependency', async () => {
-  //       await timelock.execute(
-  //         operation1.target,
-  //         operation1.value,
-  //         operation1.data,
-  //         operation1.predecessor,
-  //         operation1.salt,
-  //         { from: executor },
-  //       );
-  //       await timelock.execute(
-  //         operation2.target,
-  //         operation2.value,
-  //         operation2.data,
-  //         operation2.predecessor,
-  //         operation2.salt,
-  //         { from: executor },
-  //       );
-  //     });
-  //   });
+    it('can execute after dependency', async () => {
+      await timelock.connect(executor).execute(
+        operation1.target,
+        operation1.value,
+        operation1.data,
+        operation1.predecessor,
+        operation1.salt,
+      );
+      await timelock.connect(executor).execute(
+        operation2.target,
+        operation2.value,
+        operation2.data,
+        operation2.predecessor,
+        operation2.salt,
+      );
+    });
+  });
 
-  //   describe('usage scenario', () => {
-  //     timeout(10000);
+  describe('usage scenario', () => {
+    setTimeout(() => {}, 10000);
 
-  //     it('call', async () => {
-  //       operation = genOperation(
-  //         implementation2.address,
-  //         0,
-  //         implementation2.contract.methods.setValue(42).encodeABI(),
-  //         ZERO_BYTES32,
-  //         '0x8043596363daefc89977b25f9d9b4d06c3910959ef0c4d213557a903e1b555e2',
-  //       );
+    it('call', async () => {
+      const operation: Operation = genOperation(
+        implementation2.address,
+        0,
+        implementation2.interface.encodeFunctionData('setValue', [42]),
+        ZERO_BYTES32,
+        '0x8043596363daefc89977b25f9d9b4d06c3910959ef0c4d213557a903e1b555e2',
+      );
 
-  //       await timelock.schedule(
-  //         operation.target,
-  //         operation.value,
-  //         operation.data,
-  //         operation.predecessor,
-  //         operation.salt,
-  //         MINDELAY,
-  //         { from: proposer },
-  //       );
-  //       await time.increase(MINDELAY);
-  //       await timelock.execute(
-  //         operation.target,
-  //         operation.value,
-  //         operation.data,
-  //         operation.predecessor,
-  //         operation.salt,
-  //         { from: executor },
-  //       );
+      await timelock.connect(proposer).schedule(
+        operation.target,
+        operation.value,
+        operation.data,
+        operation.predecessor,
+        operation.salt,
+        MINDELAY,
+      );
+      const bn = await ethers.provider.getBlockNumber();
+      let { timestamp } = await ethers.provider.getBlock(bn);
+      timestamp = ethers.BigNumber.from(timestamp).toNumber();
+      await mineBlock(MINDELAY + timestamp);
 
-  //       expect(await implementation2.getValue()).to.be.equal(ethers.BigNumber.from(42));
-  //     });
+      await timelock.connect(executor).execute(
+        operation.target,
+        operation.value,
+        operation.data,
+        operation.predecessor,
+        operation.salt,
+      );
 
-  //     it('call reverting', async () => {
-  //       operation = genOperation(
-  //         callreceivermock.address,
-  //         0,
-  //         callreceivermock.contract.methods.mockFunctionRevertsNoReason().encodeABI(),
-  //         ZERO_BYTES32,
-  //         '0xb1b1b276fdf1a28d1e00537ea73b04d56639128b08063c1a2f70a52e38cba693',
-  //       );
+      expect(await implementation2.getValue())
+        .to.be.equal(ethers.BigNumber.from(42));
+    });
 
-  //       await timelock.schedule(
-  //         operation.target,
-  //         operation.value,
-  //         operation.data,
-  //         operation.predecessor,
-  //         operation.salt,
-  //         MINDELAY,
-  //         { from: proposer },
-  //       );
-  //       await time.increase(MINDELAY);
-  //       await expectRevert(
-  //         timelock.execute(
-  //           operation.target,
-  //           operation.value,
-  //           operation.data,
-  //           operation.predecessor,
-  //           operation.salt,
-  //           { from: executor },
-  //         ),
-  //         'TimelockController: underlying transaction reverted',
-  //       );
-  //     });
+    it('call reverting', async () => {
+      const operation: Operation = genOperation(
+        callreceivermock.address,
+        0,
+        callreceivermock.interface.encodeFunctionData('mockFunctionRevertsNoReason'),
+        ZERO_BYTES32,
+        '0xb1b1b276fdf1a28d1e00537ea73b04d56639128b08063c1a2f70a52e38cba693',
+      );
 
-  //     it('call throw', async () => {
-  //       operation = genOperation(
-  //         callreceivermock.address,
-  //         0,
-  //         callreceivermock.contract.methods.mockFunctionThrows().encodeABI(),
-  //         ZERO_BYTES32,
-  //         '0xe5ca79f295fc8327ee8a765fe19afb58f4a0cbc5053642bfdd7e73bc68e0fc67',
-  //       );
+      await timelock.connect(proposer).schedule(
+        operation.target,
+        operation.value,
+        operation.data,
+        operation.predecessor,
+        operation.salt,
+        MINDELAY,
+      );
 
-  //       await timelock.schedule(
-  //         operation.target,
-  //         operation.value,
-  //         operation.data,
-  //         operation.predecessor,
-  //         operation.salt,
-  //         MINDELAY,
-  //         { from: proposer },
-  //       );
-  //       await time.increase(MINDELAY);
-  //       await expectRevert(
-  //         timelock.execute(
-  //           operation.target,
-  //           operation.value,
-  //           operation.data,
-  //           operation.predecessor,
-  //           operation.salt,
-  //           { from: executor },
-  //         ),
-  //         'TimelockController: underlying transaction reverted',
-  //       );
-  //     });
+      const bn = await ethers.provider.getBlockNumber();
+      let { timestamp } = await ethers.provider.getBlock(bn);
+      timestamp = ethers.BigNumber.from(timestamp).toNumber();
+      await mineBlock(MINDELAY + timestamp);
 
-  //     it('call out of gas', async () => {
-  //       operation = genOperation(
-  //         callreceivermock.address,
-  //         0,
-  //         callreceivermock.contract.methods.mockFunctionOutOfGas().encodeABI(),
-  //         ZERO_BYTES32,
-  //         '0xf3274ce7c394c5b629d5215723563a744b817e1730cca5587c567099a14578fd',
-  //       );
+      await expect(
+        timelock.connect(executor).execute(
+          operation.target,
+          operation.value,
+          operation.data,
+          operation.predecessor,
+          operation.salt,
+        ),
+      ).to.be.revertedWith(
+        'TimelockController: underlying transaction reverted',
+      );
+    });
 
-  //       await timelock.schedule(
-  //         operation.target,
-  //         operation.value,
-  //         operation.data,
-  //         operation.predecessor,
-  //         operation.salt,
-  //         MINDELAY,
-  //         { from: proposer },
-  //       );
-  //       await time.increase(MINDELAY);
-  //       await expectRevert(
-  //         timelock.execute(
-  //           operation.target,
-  //           operation.value,
-  //           operation.data,
-  //           operation.predecessor,
-  //           operation.salt,
-  //           { from: executor, gas: '70000' },
-  //         ),
-  //         'TimelockController: underlying transaction reverted',
-  //       );
-  //     });
+    it('call throw', async () => {
+      const operation: Operation = genOperation(
+        callreceivermock.address,
+        0,
+        callreceivermock.interface.encodeFunctionData('mockFunctionThrows'),
+        ZERO_BYTES32,
+        '0xe5ca79f295fc8327ee8a765fe19afb58f4a0cbc5053642bfdd7e73bc68e0fc67',
+      );
 
-  //     it('call payable with eth', async () => {
-  //       operation = genOperation(
-  //         callreceivermock.address,
-  //         1,
-  //         callreceivermock.contract.methods.mockFunction().encodeABI(),
-  //         ZERO_BYTES32,
-  //         '0x5ab73cd33477dcd36c1e05e28362719d0ed59a7b9ff14939de63a43073dc1f44',
-  //       );
+      await timelock.connect(proposer).schedule(
+        operation.target,
+        operation.value,
+        operation.data,
+        operation.predecessor,
+        operation.salt,
+        MINDELAY,
+      );
 
-  //       await timelock.schedule(
-  //         operation.target,
-  //         operation.value,
-  //         operation.data,
-  //         operation.predecessor,
-  //         operation.salt,
-  //         MINDELAY,
-  //       );
-  //       await time.increase(MINDELAY);
+      const bn = await ethers.provider.getBlockNumber();
+      let { timestamp } = await ethers.provider.getBlock(bn);
+      timestamp = ethers.BigNumber.from(timestamp).toNumber();
+      await mineBlock(MINDELAY + timestamp);
 
-  //       expect(await ethers.provider.getBalance(timelock.address))
-  //         .to.be.equal(ethers.BigNumber.from(0));
-  //       expect(await ethers.provider.getBalance(callreceivermock.address))
-  //         .to.be.equal(ethers.BigNumber.from(0));
+      await expect(
+        timelock.connect(executor).execute(
+          operation.target,
+          operation.value,
+          operation.data,
+          operation.predecessor,
+          operation.salt,
+        ),
+      ).to.be.revertedWith(
+        'TimelockController: underlying transaction reverted',
+      );
+    });
 
-  //       await timelock.execute(
-  //         operation.target,
-  //         operation.value,
-  //         operation.data,
-  //         operation.predecessor,
-  //         operation.salt,
-  //         { from: executor, value: 1 },
-  //       );
+    it('call out of gas', async () => {
+      const operation: Operation = genOperation(
+        callreceivermock.address,
+        0,
+        callreceivermock.interface.encodeFunctionData('mockFunctionOutOfGas'),
+        ZERO_BYTES32,
+        '0xf3274ce7c394c5b629d5215723563a744b817e1730cca5587c567099a14578fd',
+      );
 
-  //       expect(await ethers.provider.getBalance(timelock.address))
-  //         .to.be.equal(ethers.BigNumber.from(0));
-  //       expect(await ethers.provider.getBalance(callreceivermock.address))
-  //         .to.be.equal(ethers.BigNumber.from(1));
-  //     });
+      await timelock.connect(proposer).schedule(
+        operation.target,
+        operation.value,
+        operation.data,
+        operation.predecessor,
+        operation.salt,
+        MINDELAY,
+      );
 
-  //     it('call nonpayable with eth', async () => {
-  //       operation = genOperation(
-  //         callreceivermock.address,
-  //         1,
-  //         callreceivermock.contract.methods.mockFunctionNonPayable().encodeABI(),
-  //         ZERO_BYTES32,
-  //         '0xb78edbd920c7867f187e5aa6294ae5a656cfbf0dea1ccdca3751b740d0f2bdf8',
-  //       );
+      const bn = await ethers.provider.getBlockNumber();
+      let { timestamp } = await ethers.provider.getBlock(bn);
+      timestamp = ethers.BigNumber.from(timestamp).toNumber();
+      await mineBlock(MINDELAY + timestamp);
 
-  //       await timelock.schedule(
-  //         operation.target,
-  //         operation.value,
-  //         operation.data,
-  //         operation.predecessor,
-  //         operation.salt,
-  //         MINDELAY,
-  //         { from: proposer },
-  //       );
-  //       await time.increase(MINDELAY);
+      await expect(
+        timelock.connect(executor).execute(
+          operation.target,
+          operation.value,
+          operation.data,
+          operation.predecessor,
+          operation.salt,
+          { gasLimit: '70000' },
+        ),
+      ).to.be.revertedWith(
+        'TimelockController: underlying transaction reverted',
+      );
+    });
 
-  //       expect(await ethers.provider.getBalance(timelock.address))
-  //         .to.be.equal(ethers.BigNumber.from(0));
-  //       expect(await ethers.provider.getBalance(callreceivermock.address))
-  //         .to.be.equal(ethers.BigNumber.from(0));
+    it('call payable with eth', async () => {
+      const operation: Operation = genOperation(
+        callreceivermock.address,
+        1,
+        callreceivermock.interface.encodeFunctionData('mockFunction'),
+        ZERO_BYTES32,
+        '0x5ab73cd33477dcd36c1e05e28362719d0ed59a7b9ff14939de63a43073dc1f44',
+      );
 
-  //       await expectRevert(
-  //         timelock.execute(
-  //           operation.target,
-  //           operation.value,
-  //           operation.data,
-  //           operation.predecessor,
-  //           operation.salt,
-  //           { from: executor },
-  //         ),
-  //         'TimelockController: underlying transaction reverted',
-  //       );
+      await timelock.connect(proposer).schedule(
+        operation.target,
+        operation.value,
+        operation.data,
+        operation.predecessor,
+        operation.salt,
+        MINDELAY,
+      );
 
-  //       expect(await ethers.provider.getBalance(timelock.address))
-  //         .to.be.equal(ethers.BigNumber.from(0));
-  //       expect(await ethers.provider.getBalance(callreceivermock.address))
-  //         .to.be.equal(ethers.BigNumber.from(0));
-  //     });
+      const bn = await ethers.provider.getBlockNumber();
+      let { timestamp } = await ethers.provider.getBlock(bn);
+      timestamp = ethers.BigNumber.from(timestamp).toNumber();
+      await mineBlock(MINDELAY + timestamp);
 
-  //     it('call reverting with eth', async () => {
-  //       operation = genOperation(
-  //         callreceivermock.address,
-  //         1,
-  //         callreceivermock.contract.methods.mockFunctionRevertsNoReason().encodeABI(),
-  //         ZERO_BYTES32,
-  //         '0xdedb4563ef0095db01d81d3f2decf57cf83e4a72aa792af14c43a792b56f4de6',
-  //       );
+      expect(await ethers.provider.getBalance(timelock.address))
+        .to.be.equal(ethers.BigNumber.from(0));
+      expect(await ethers.provider.getBalance(callreceivermock.address))
+        .to.be.equal(ethers.BigNumber.from(0));
 
-  //       await timelock.schedule(
-  //         operation.target,
-  //         operation.value,
-  //         operation.data,
-  //         operation.predecessor,
-  //         operation.salt,
-  //         MINDELAY,
-  //         { from: proposer },
-  //       );
-  //       await time.increase(MINDELAY);
+      await timelock.connect(executor).execute(
+        operation.target,
+        operation.value,
+        operation.data,
+        operation.predecessor,
+        operation.salt,
+        { value: 1 },
+      );
 
-  //       expect(await ethers.provider.getBalance(timelock.address))
-  //         .to.be.equal(ethers.BigNumber.from(0));
-  //       expect(await ethers.provider.getBalance(callreceivermock.address))
-  //         .to.be.equal(ethers.BigNumber.from(0));
+      expect(await ethers.provider.getBalance(timelock.address))
+        .to.be.equal(ethers.BigNumber.from(0));
+      expect(await ethers.provider.getBalance(callreceivermock.address))
+        .to.be.equal(ethers.BigNumber.from(1));
+    });
 
-  //       await expectRevert(
-  //         timelock.execute(
-  //           operation.target,
-  //           operation.value,
-  //           operation.data,
-  //           operation.predecessor,
-  //           operation.salt,
-  //           { from: executor },
-  //         ),
-  //         'TimelockController: underlying transaction reverted',
-  //       );
+    it('call nonpayable with eth', async () => {
+      const operation: Operation = genOperation(
+        callreceivermock.address,
+        1,
+        callreceivermock.interface.encodeFunctionData('mockFunctionNonPayable'),
+        ZERO_BYTES32,
+        '0xb78edbd920c7867f187e5aa6294ae5a656cfbf0dea1ccdca3751b740d0f2bdf8',
+      );
 
-  //       expect(await ethers.provider.getBalance(timelock.address))
-  //         .to.be.equal(ethers.BigNumber.from(0));
-  //       expect(await ethers.provider.getBalance(callreceivermock.address))
-  //         .to.be.equal(ethers.BigNumber.from(0));
-  //     });
-  //   });
+      await timelock.connect(proposer).schedule(
+        operation.target,
+        operation.value,
+        operation.data,
+        operation.predecessor,
+        operation.salt,
+        MINDELAY,
+      );
+
+      const bn = await ethers.provider.getBlockNumber();
+      let { timestamp } = await ethers.provider.getBlock(bn);
+      timestamp = ethers.BigNumber.from(timestamp).toNumber();
+      await mineBlock(MINDELAY + timestamp);
+
+      expect(await ethers.provider.getBalance(timelock.address))
+        .to.be.equal(ethers.BigNumber.from(0));
+      expect(await ethers.provider.getBalance(callreceivermock.address))
+        .to.be.equal(ethers.BigNumber.from(0));
+
+      await expect(
+        timelock.connect(executor).execute(
+          operation.target,
+          operation.value,
+          operation.data,
+          operation.predecessor,
+          operation.salt,
+        ),
+      ).to.be.revertedWith(
+        'TimelockController: underlying transaction reverted',
+      );
+
+      expect(await ethers.provider.getBalance(timelock.address))
+        .to.be.equal(ethers.BigNumber.from(0));
+      expect(await ethers.provider.getBalance(callreceivermock.address))
+        .to.be.equal(ethers.BigNumber.from(0));
+    });
+
+    it('call reverting with eth', async () => {
+      const operation: Operation = genOperation(
+        callreceivermock.address,
+        1,
+        callreceivermock.interface.encodeFunctionData('mockFunctionRevertsNoReason'),
+        ZERO_BYTES32,
+        '0xdedb4563ef0095db01d81d3f2decf57cf83e4a72aa792af14c43a792b56f4de6',
+      );
+
+      await timelock.connect(proposer).schedule(
+        operation.target,
+        operation.value,
+        operation.data,
+        operation.predecessor,
+        operation.salt,
+        MINDELAY,
+      );
+
+      const bn = await ethers.provider.getBlockNumber();
+      let { timestamp } = await ethers.provider.getBlock(bn);
+      timestamp = ethers.BigNumber.from(timestamp).toNumber();
+      await mineBlock(MINDELAY + timestamp);
+
+      expect(await ethers.provider.getBalance(timelock.address))
+        .to.be.equal(ethers.BigNumber.from(0));
+      expect(await ethers.provider.getBalance(callreceivermock.address))
+        .to.be.equal(ethers.BigNumber.from(0));
+
+      await expect(
+        timelock.connect(executor).execute(
+          operation.target,
+          operation.value,
+          operation.data,
+          operation.predecessor,
+          operation.salt,
+        ),
+      ).to.be.revertedWith(
+        'TimelockController: underlying transaction reverted',
+      );
+
+      expect(await ethers.provider.getBalance(timelock.address))
+        .to.be.equal(ethers.BigNumber.from(0));
+      expect(await ethers.provider.getBalance(callreceivermock.address))
+        .to.be.equal(ethers.BigNumber.from(0));
+    });
+  });
 });
