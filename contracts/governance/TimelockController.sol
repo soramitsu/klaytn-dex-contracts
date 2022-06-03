@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (governance/TimelockController.sol)
+// Modified from OpenZeppelin Contracts v4.4.1 (governance/TimelockController.sol)
 
 pragma solidity ^0.8.0;
 
