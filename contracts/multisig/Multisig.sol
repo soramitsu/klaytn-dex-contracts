@@ -69,15 +69,15 @@ contract MultiSigWallet {
         _;
     }
 
-    modifier confirmed(uint256 transactionId, address owner) {
-        require(transactions[transactionId].confirmations.contains(owner));
-        _;
-    }
+    // modifier confirmed(uint256 transactionId, address owner) {
+    //     require(transactions[transactionId].confirmations.contains(owner));
+    //     _;
+    // }
 
-    modifier notConfirmed(uint256 transactionId, address owner) {
-        require(!transactions[transactionId].confirmations.contains(owner));
-        _;
-    }
+    // modifier notConfirmed(uint256 transactionId, address owner) {
+    //     require(!transactions[transactionId].confirmations.contains(owner));
+    //     _;
+    // }
 
     modifier notExecuted(uint256 transactionId) {
         require(!transactions[transactionId].executed);
@@ -204,8 +204,9 @@ contract MultiSigWallet {
         public
         ownerExists(msg.sender)
         transactionExists(transactionId)
-        notConfirmed(transactionId, msg.sender)
-    {
+        /// notConfirmed(transactionId, msg.sender)
+    {   
+        require(!transactions[transactionId].confirmations.contains(msg.sender), "Already confirmed");
         transactions[transactionId].confirmations.add(msg.sender);
         emit Confirmation(msg.sender, transactionId);
         executeTransaction(transactionId);
@@ -216,9 +217,10 @@ contract MultiSigWallet {
     function revokeConfirmation(uint256 transactionId)
         public
         ownerExists(msg.sender)
-        confirmed(transactionId, msg.sender)
+        /// confirmed(transactionId, msg.sender)
         notExecuted(transactionId)
-    {
+    {   
+        require(transactions[transactionId].confirmations.contains(msg.sender), "Not confirmed");
         transactions[transactionId].confirmations.remove(msg.sender);
         emit Revocation(msg.sender, transactionId);
     }
@@ -228,9 +230,10 @@ contract MultiSigWallet {
     function executeTransaction(uint256 transactionId)
         public
         ownerExists(msg.sender)
-        confirmed(transactionId, msg.sender)
+        /// confirmed(transactionId, msg.sender)
         notExecuted(transactionId)
-    {
+    {   
+        require(transactions[transactionId].confirmations.contains(msg.sender), "Not confirmed");
         if (isConfirmed(transactionId)) {
             Transaction storage txn = transactions[transactionId];
             txn.executed = true;
@@ -315,18 +318,18 @@ contract MultiSigWallet {
     /*
      * Web3 call functions
      */
-    /// @dev Returns number of confirmations of a transaction.
-    /// @param transactionId Transaction ID.
-    /// @return count Number of confirmations.
-    function getConfirmationCount(uint256 transactionId)
-        external
-        view
-        returns (uint256 count)
-    {   
-        count = transactions[transactionId].confirmations.length();
-        // for (uint256 i = 0; i < owners.length(); i++)
-        //     if (confirmations[transactionId][owners.at(i)]) count += 1;
-    }
+    // /// @dev Returns number of confirmations of a transaction.
+    // /// @param transactionId Transaction ID.
+    // /// @return count Number of confirmations.
+    // function getConfirmationCount(uint256 transactionId)
+    //     external
+    //     view
+    //     returns (uint256 count)
+    // {   
+    //     count = transactions[transactionId].confirmations.length();
+    //     // for (uint256 i = 0; i < owners.length(); i++)
+    //     //     if (confirmations[transactionId][owners.at(i)]) count += 1;
+    // }
 
     /// @dev Returns total number of transactions after filers are applied.
     /// @param pending Include pending transactions.
@@ -358,17 +361,18 @@ contract MultiSigWallet {
         view
         returns (address[] memory _confirmations)
     {   
-        uint length = owners.length();
-        address[] memory confirmationsTemp = new address[](length);
-        uint256 count = 0;
-        uint256 i;
-        for (i = 0; i < length; i++)
-            if (transactions[transactionId].confirmations.contains(owners.at(i))) {
-                confirmationsTemp[count] = owners.at(i);
-                count += 1;
-            }
-        _confirmations = new address[](count);
-        for (i = 0; i < count; i++) _confirmations[i] = confirmationsTemp[i];
+        // uint length = owners.length();
+        // address[] memory confirmationsTemp = new address[](length);
+        // uint256 count = 0;
+        // uint256 i;
+        // for (i = 0; i < length; i++)
+        //     if (transactions[transactionId].confirmations.contains(owners.at(i))) {
+        //         confirmationsTemp[count] = owners.at(i);
+        //         count += 1;
+        //     }
+        // _confirmations = new address[](count);
+        // for (i = 0; i < count; i++) _confirmations[i] = confirmationsTemp[i];
+        _confirmations = transactions[transactionId].confirmations.values();
     }
 
     /// @dev Returns list of transaction IDs in defined range.
