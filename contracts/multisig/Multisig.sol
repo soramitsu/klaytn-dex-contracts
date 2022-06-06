@@ -1,14 +1,13 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: LGPL-3.0
 // Modified from https://github.com/gnosis/MultiSigWallet/blob/master/contracts/MultiSigWallet.sol
 pragma solidity =0.8.12;
-import "../utils/AccessControl.sol";
+import "../utils/EnumerableSet.sol";
 
 /// @title Multisignature wallet - Allows multiple parties to agree on transactions before execution.
 /// @author Stefan George - <stefan.george@consensys.net>
-contract MultiSigWallet is AccessControl {
-    bytes32 public constant WALLET_ADMIN_ROLE = keccak256("WALLET_ADMIN_ROLE");
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-
+contract MultiSigWallet {
+    using EnumerableSet for EnumerableSet.AddressSet;
+    
     /*
      *  Events
      */
@@ -18,8 +17,8 @@ contract MultiSigWallet is AccessControl {
     event Execution(uint256 indexed transactionId);
     event ExecutionFailure(uint256 indexed transactionId);
     event Deposit(address indexed sender, uint256 value);
-    // event OwnerAddition(address indexed owner);
-    // event OwnerRemoval(address indexed owner);
+    event OwnerAddition(address indexed owner);
+    event OwnerRemoval(address indexed owner);
     event RequirementChange(uint256 required);
 
     /*
@@ -30,35 +29,38 @@ contract MultiSigWallet is AccessControl {
     /*
      *  Storage
      */
-    mapping(uint256 => Transaction) public transactions;
-    mapping(uint256 => mapping(address => bool)) public confirmations;
-    mapping(address => bool) public isOwner;
-    address[] public owners;
+    mapping(uint256 => Transaction) private transactions;
+    // mapping(uint256 => mapping(address => bool)) public confirmations;
+    EnumerableSet.AddressSet private owners;
+    // mapping(address => bool) public isOwner;
+    // address[] public owners;
     uint256 public required;
     uint256 public transactionCount;
+    
 
     struct Transaction {
         address destination;
         uint256 value;
         bytes data;
         bool executed;
+        EnumerableSet.AddressSet confirmations;
     }
 
     /*
      *  Modifiers
      */
     modifier onlyWallet() {
-        require(hasRole(WALLET_ADMIN_ROLE, msg.sender));
+        require(msg.sender == address(this));
         _;
     }
 
     modifier ownerDoesNotExist(address owner) {
-        require(!hasRole(ADMIN_ROLE, owner));
+        require(!owners.contains(owner));
         _;
     }
 
     modifier ownerExists(address owner) {
-        require(hasRole(ADMIN_ROLE, owner));
+        require(owners.contains(owner));
         _;
     }
 
@@ -68,12 +70,12 @@ contract MultiSigWallet is AccessControl {
     }
 
     modifier confirmed(uint256 transactionId, address owner) {
-        require(confirmations[transactionId][owner]);
+        require(transactions[transactionId].confirmations.contains(owner));
         _;
     }
 
     modifier notConfirmed(uint256 transactionId, address owner) {
-        require(!confirmations[transactionId][owner]);
+        require(!transactions[transactionId].confirmations.contains(owner));
         _;
     }
 
@@ -87,12 +89,12 @@ contract MultiSigWallet is AccessControl {
         _;
     }
 
-    modifier validRequirement(uint256 adminCount, uint256 _required) {
+    modifier validRequirement(uint256 ownerCount, uint256 _required) {
         require(
-            adminCount <= MAX_OWNER_COUNT &&
-                _required <= adminCount &&
+            ownerCount <= MAX_OWNER_COUNT &&
+                _required <= ownerCount &&
                 _required != 0 &&
-                adminCount != 0
+                ownerCount != 0
         );
         _;
     }
@@ -103,89 +105,80 @@ contract MultiSigWallet is AccessControl {
     }
 
     /// @dev Contract constructor sets initial owners and required number of confirmations.
-    /// @param _admins List of initial owners.
+    /// @param _owners List of initial owners.
     /// @param _required Number of required confirmations.
-    constructor(address[] memory _admins, uint256 _required)
-        validRequirement(_admins.length, _required)
+    constructor(address[] memory _owners, uint256 _required)
+        validRequirement(_owners.length, _required)
     {
-        _setRoleAdmin(WALLET_ADMIN_ROLE, WALLET_ADMIN_ROLE);
-        _setupRole(WALLET_ADMIN_ROLE, address(this));
-        uint256 length = _admins.length;
-        for (uint256 i = 0; i < length; i++) {
-            require(
-                _admins[i] != address(0) &&
-                    !hasRole(WALLET_ADMIN_ROLE, _admins[i]),
-                "Ivalid admin list"
-            );
-            _setupRole(ADMIN_ROLE, _admins[i]);
+        for (uint256 i = 0; i < _owners.length; i++) {
+            require(_owners[i] != address(0) && owners.add(_owners[i]));
+            // isOwner[_owners[i]] = true;
         }
-        owners = _admins;
+        // owners = _owners;
         required = _required;
     }
 
     /*
      * Public functions
      */
+    /// @dev Allows to add a new owner. Transaction has to be sent by wallet.
+    /// @param owner Address of new owner.
+    function addOwner(address owner)
+        public
+        onlyWallet
+        ownerDoesNotExist(owner)
+        notNull(owner)
+        validRequirement(owners.length() + 1, required)
+    {
+        owners.add(owner);
+        // owners.push(owner);
+        emit OwnerAddition(owner);
+    }
 
-    // /// @dev Allows to add a new owner. Transaction has to be sent by wallet.
-    // /// @param owner Address of new owner.
-    // function addOwner(address owner)
-    //     public
-    //     onlyRole(WALLET_ADMIN_ROLE)
-    //     ownerDoesNotExist(owner)
-    //     notNull(owner)
-    //     validRequirement(owners.length + 1, required)
-    // {
-    //     isOwner[owner] = true;
-    //     owners.push(owner);
-    //     OwnerAddition(owner);
-    // }
+    /// @dev Allows to remove an owner. Transaction has to be sent by wallet.
+    /// @param owner Address of owner.
+    function removeOwner(address owner) public onlyWallet ownerExists(owner) {
+        // isOwner[owner] = false;
+        // for (uint256 i = 0; i < owners.length - 1; i++)
+        //     if (owners[i] == owner) {
+        //         owners[i] = owners[owners.length - 1];
+        //         break;
+        //     }
+        // owners.length -= 1;
+        owners.remove(owner);
+        if (required > owners.length())
+            changeRequirement(owners.length());
+        emit OwnerRemoval(owner);
+    }
 
-    // /// @dev Allows to remove an owner. Transaction has to be sent by wallet.
-    // /// @param owner Address of owner.
-    // function removeOwner(address owner)
-    //     public
-    //     onlyRole(WALLET_ADMIN_ROLE)
-    //     ownerExists(owner)
-    // {
-    //     isOwner[owner] = false;
-    //     for (uint i=0; i<owners.length - 1; i++)
-    //         if (owners[i] == owner) {
-    //             owners[i] = owners[owners.length - 1];
-    //             break;
-    //         }
-    //     owners.length -= 1;
-    //     if (required > owners.length)
-    //         changeRequirement(owners.length);
-    //     OwnerRemoval(owner);
-    // }
-
-    // /// @dev Allows to replace an owner with a new owner. Transaction has to be sent by wallet.
-    // /// @param owner Address of owner to be replaced.
-    // /// @param newOwner Address of new owner.
-    // function replaceOwner(address owner, address newOwner)
-    //     public
-    //     onlyRole(WALLET_ADMIN_ROLE)
-    //     ownerExists(owner)
-    //     ownerDoesNotExist(newOwner)
-    // {
-    //     for (uint i=0; i<owners.length; i++)
-    //         if (owners[i] == owner) {
-    //             owners[i] = newOwner;
-    //             break;
-    //         }
-    //     isOwner[owner] = false;
-    //     isOwner[newOwner] = true;
-    //     OwnerRemoval(owner);
-    //     OwnerAddition(newOwner);
-    // }
+    /// @dev Allows to replace an owner with a new owner. Transaction has to be sent by wallet.
+    /// @param owner Address of owner to be replaced.
+    /// @param newOwner Address of new owner.
+    function replaceOwner(address owner, address newOwner)
+        public
+        onlyWallet
+        ownerExists(owner)
+        ownerDoesNotExist(newOwner)
+    {
+        // for (uint256 i = 0; i < owners.length; i++)
+        //     if (owners[i] == owner) {
+        //         owners[i] = newOwner;
+        //         break;
+        //     }
+        owners.remove(owner);
+        owners.add(newOwner);
+        // isOwner[owner] = false;
+        // isOwner[newOwner] = true;
+        emit OwnerRemoval(owner);
+        emit OwnerAddition(newOwner);
+    }
 
     /// @dev Allows to change the number of required confirmations. Transaction has to be sent by wallet.
     /// @param _required Number of required confirmations.
     function changeRequirement(uint256 _required)
         public
-        onlyRole(WALLET_ADMIN_ROLE)
-        validRequirement(owners.length, _required)
+        onlyWallet
+        validRequirement(owners.length(), _required)
     {
         required = _required;
         emit RequirementChange(_required);
@@ -195,7 +188,7 @@ contract MultiSigWallet is AccessControl {
     /// @param destination Transaction target address.
     /// @param value Transaction ether value.
     /// @param data Transaction data payload.
-    /// @return transactionId transaction ID.
+    /// @return transactionId Returns transaction ID.
     function submitTransaction(
         address destination,
         uint256 value,
@@ -213,7 +206,7 @@ contract MultiSigWallet is AccessControl {
         transactionExists(transactionId)
         notConfirmed(transactionId, msg.sender)
     {
-        confirmations[transactionId][msg.sender] = true;
+        transactions[transactionId].confirmations.add(msg.sender);
         emit Confirmation(msg.sender, transactionId);
         executeTransaction(transactionId);
     }
@@ -226,7 +219,7 @@ contract MultiSigWallet is AccessControl {
         confirmed(transactionId, msg.sender)
         notExecuted(transactionId)
     {
-        confirmations[transactionId][msg.sender] = false;
+        transactions[transactionId].confirmations.remove(msg.sender);
         emit Revocation(msg.sender, transactionId);
     }
 
@@ -285,13 +278,15 @@ contract MultiSigWallet is AccessControl {
 
     /// @dev Returns the confirmation status of a transaction.
     /// @param transactionId Transaction ID.
-    /// @return Confirmation status.
-    function isConfirmed(uint256 transactionId) public view returns (bool) {
-        uint256 count = 0;
-        for (uint256 i = 0; i < owners.length; i++) {
-            if (confirmations[transactionId][owners[i]]) count += 1;
-            if (count == required) return true;
-        }
+    /// @return confirmed_ Confirmation status.
+    function isConfirmed(uint256 transactionId) public view returns (bool confirmed_) {
+        confirmed_ = transactions[transactionId].confirmations.length() >= required ? true : false;
+        
+        // uint length = owners.length();
+        // for (uint256 i = 0; i < length; i++) {
+        //     if (confirmations[transactionId][owners.at(i)]) count += 1;
+        //     if (count == required) return true;
+        // }
     }
 
     /*
@@ -301,19 +296,18 @@ contract MultiSigWallet is AccessControl {
     /// @param destination Transaction target address.
     /// @param value Transaction ether value.
     /// @param data Transaction data payload.
-    /// @return transactionId transaction ID.
+    /// @return transactionId Returns transaction ID.
     function addTransaction(
         address destination,
         uint256 value,
         bytes calldata data
     ) internal notNull(destination) returns (uint256 transactionId) {
         transactionId = transactionCount;
-        transactions[transactionId] = Transaction({
-            destination: destination,
-            value: value,
-            data: data,
-            executed: false
-        });
+        Transaction storage newTransaction = transactions[transactionId];
+        newTransaction.destination = destination;
+        newTransaction.value = value;
+        newTransaction.data = data;
+        newTransaction.executed = false;
         transactionCount += 1;
         emit Submission(transactionId);
     }
@@ -323,20 +317,21 @@ contract MultiSigWallet is AccessControl {
      */
     /// @dev Returns number of confirmations of a transaction.
     /// @param transactionId Transaction ID.
-    /// @return count of confirmations.
+    /// @return count Number of confirmations.
     function getConfirmationCount(uint256 transactionId)
-        public
+        external
         view
         returns (uint256 count)
-    {
-        for (uint256 i = 0; i < owners.length; i++)
-            if (confirmations[transactionId][owners[i]]) count += 1;
+    {   
+        count = transactions[transactionId].confirmations.length();
+        // for (uint256 i = 0; i < owners.length(); i++)
+        //     if (confirmations[transactionId][owners.at(i)]) count += 1;
     }
 
     /// @dev Returns total number of transactions after filers are applied.
     /// @param pending Include pending transactions.
     /// @param executed Include executed transactions.
-    /// @return count number of transactions after filters are applied.
+    /// @return count Total number of transactions after filters are applied.
     function getTransactionCount(bool pending, bool executed)
         public
         view
@@ -351,24 +346,25 @@ contract MultiSigWallet is AccessControl {
 
     /// @dev Returns list of owners.
     /// @return List of owner addresses.
-    function getOwners() public view returns (address[] memory) {
-        return owners;
+    function getOwners() external view returns (address[] memory) {
+        return owners.values();
     }
 
     /// @dev Returns array with owner addresses, which confirmed transaction.
     /// @param transactionId Transaction ID.
-    /// @return _confirmations array of owner addresses.
+    /// @return _confirmations Returns array of owner addresses.
     function getConfirmations(uint256 transactionId)
         public
         view
         returns (address[] memory _confirmations)
-    {
-        address[] memory confirmationsTemp = new address[](owners.length);
+    {   
+        uint length = owners.length();
+        address[] memory confirmationsTemp = new address[](length);
         uint256 count = 0;
         uint256 i;
-        for (i = 0; i < owners.length; i++)
-            if (confirmations[transactionId][owners[i]]) {
-                confirmationsTemp[count] = owners[i];
+        for (i = 0; i < length; i++)
+            if (transactions[transactionId].confirmations.contains(owners.at(i))) {
+                confirmationsTemp[count] = owners.at(i);
                 count += 1;
             }
         _confirmations = new address[](count);
@@ -380,13 +376,13 @@ contract MultiSigWallet is AccessControl {
     /// @param to Index end position of transaction array.
     /// @param pending Include pending transactions.
     /// @param executed Include executed transactions.
-    /// @return _transactionIds array of transaction IDs.
+    /// @return _transactionIds Returns array of transaction IDs.
     function getTransactionIds(
         uint256 from,
         uint256 to,
         bool pending,
         bool executed
-    ) public view returns (uint256[] memory _transactionIds) {
+    ) external view returns (uint256[] memory _transactionIds) {
         uint256[] memory transactionIdsTemp = new uint256[](transactionCount);
         uint256 count = 0;
         uint256 i;
@@ -401,5 +397,23 @@ contract MultiSigWallet is AccessControl {
         _transactionIds = new uint256[](to - from);
         for (i = from; i < to; i++)
             _transactionIds[i - from] = transactionIdsTemp[i];
+    }
+
+    /// @dev Returns transaction info.
+    /// @param transactionId Transaction ID.
+    /// .
+    function getTransactionInfo(uint256 transactionId) external view returns (address destination_,
+        uint256 value_,
+        bytes memory data_, 
+        bool executed_,
+        uint256 votesLength_
+        ) 
+    {
+        Transaction storage transaction = transactions[transactionId];
+        value_ = transaction.value;
+        destination_ = transaction.destination;
+        data_ = transaction.data;
+        executed_ = transaction.executed;
+        votesLength_ = transaction.confirmations.length();
     }
 }
