@@ -1,3 +1,4 @@
+/* eslint-disable no-await-in-loop */
 import { parseEther } from 'ethers/lib/utils';
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
@@ -25,14 +26,11 @@ describe('Smart Chef Factory', () => {
   const rewardPerBlock = parseEther('10');
 
   // Contracts
-  // let fakeCake: DexKIP7Test;
+  let fakeCake: KIP7Mock;
   let mockCAKE: KIP7Mock;
   let mockPT: KIP7Mock;
   let smartChef: StakingInitializable;
   let smartChefFactory: StakingFactory;
-
-  // Generic result variable
-  let result: any;
 
   before(async () => {
     [alice, bob, carol, david, erin] = await ethers.getSigners();
@@ -47,7 +45,7 @@ describe('Smart Chef Factory', () => {
     mockPT = await MockERC20.deploy(parseEther('4000'));
 
     // Fake $Cake Token
-    // fakeCake = await MockERC20.deploy(parseEther('100'));
+    fakeCake = await MockERC20.deploy(parseEther('100'));
 
     smartChefFactory = await SmartChefFactory.deploy();
   });
@@ -83,14 +81,10 @@ describe('Smart Chef Factory', () => {
 
     it('Users deposit', async () => {
       for (const thisUser of [bob, carol, david, erin]) {
-        // eslint-disable-next-line no-await-in-loop
         await mockCAKE.transfer(thisUser.address, parseEther('1000'));
-        // eslint-disable-next-line no-await-in-loop
         await mockCAKE.connect(thisUser).approve(smartChef.address, parseEther('1000'));
-        // eslint-disable-next-line no-await-in-loop
         await smartChef.connect(thisUser).deposit(parseEther('100'));
         // expectEvent(result, 'Deposit', { user: thisUser, amount: String(parseEther('100')) });
-        // eslint-disable-next-line no-await-in-loop
         assert.equal(String(await smartChef.pendingReward(thisUser.address)), '0');
       }
     });
@@ -111,166 +105,151 @@ describe('Smart Chef Factory', () => {
     });
 
     it('Carol can withdraw', async () => {
-      result = await smartChef.connect(carol).withdraw(parseEther('50'));
-      // expectEvent(result, 'Withdraw', { user: carol, amount: String(parseEther('50')) });
+      await expect(smartChef.connect(carol).withdraw(parseEther('50')))
+        .to.emit(smartChef, 'Withdraw')
+        .withArgs(carol.address, parseEther('50'));
       // She harvests 11 blocks --> 10/4 * 11 = 27.5 PT tokens
       assert.equal(String(await mockPT.balanceOf(carol.address)), String(parseEther('27.5')));
       assert.equal(String(await smartChef.pendingReward(carol.address)), String(parseEther('0')));
     });
 
     it('Can collect rewards by calling deposit with amount = 0', async () => {
-      result = await smartChef.connect(carol).deposit(parseEther('0'));
-      // expectEvent(result, 'Deposit', { user: carol, amount: String(parseEther('0')) });
+      await expect(smartChef.connect(carol).deposit(parseEther('0')))
+        .to.emit(smartChef, 'Deposit')
+        .withArgs(carol.address, 0);
       assert.equal(String(await mockPT.balanceOf(carol.address)), String(parseEther('28.92857142855')));
     });
 
     it('Can collect rewards by calling withdraw with amount = 0', async () => {
-      result = await smartChef.connect(carol).withdraw(parseEther('0'));
-      // expectEvent(result, 'Withdraw', { user: carol, amount: String(parseEther('0')) });
+      await expect(smartChef.connect(carol).withdraw(parseEther('0')))
+        .to.emit(smartChef, 'Withdraw')
+        .withArgs(carol.address, 0);
       assert.equal(String(await mockPT.balanceOf(carol.address)), String(parseEther('30.3571428571')));
     });
 
     it('Carol cannot withdraw more than she had', async () => {
-      // await expectRevert(smartChef.withdraw(parseEther('70')), 'Amount to withdraw too high');
+      await expect(smartChef.withdraw(parseEther('70')))
+        .to.be.revertedWith('Amount to withdraw too high');
     });
 
     it('Admin cannot set a limit', async () => {
-      // await expectRevert(smartChef.updatePoolLimitPerUser(true, parseEther('1')), 'Must be set');
+      await expect(smartChef.updatePoolLimitPerUser(true, parseEther('1')))
+        .to.be.revertedWith('Must be set');
     });
 
     it('Cannot change after start reward per block, nor start block or end block', async () => {
-      // await expectRevert(smartChef.updateRewardPerBlock(parseEther('1')), 'Pool has started');
-      // await expectRevert(smartChef.updateStartAndEndBlocks('1', '10'), 'Pool has started');
+      await expect(smartChef.updateRewardPerBlock(parseEther('1')))
+        .to.be.revertedWith('Pool has started');
+      await expect(smartChef.updateStartAndEndBlocks('1', '10'))
+        .to.be.revertedWith('Pool has started');
     });
 
-    // it('Advance to end of IFO', async () => {
-    //   await time.advanceBlockTo(endBlock);
+    it('Advance to end of IFO', async () => {
+      await advanceBlockTo(endBlock.toNumber() + 1);
+      console.log(endBlock, await ethers.provider.getBlockNumber());
+      console.log(await smartChef.pendingReward(bob.address));
+      for (const thisUser of [bob, david, erin]) {
+        await smartChef.connect(thisUser).withdraw(parseEther('100'));
+      }
+      console.log(await smartChef.pendingReward(bob.address));
+      await smartChef.connect(carol).withdraw(parseEther('50'));
 
-    //   for (const thisUser of [bob, david, erin]) {
-    //     await smartChef.withdraw(parseEther('100'), { from: thisUser });
-    //   }
-    //   await smartChef.withdraw(parseEther('50'), { from: carol });
+      // 0.000000001 PT token
+      assert.isAtMost(Number(await mockPT.balanceOf(smartChef.address)), 1000000000);
+    });
 
-    //   // 0.000000001 PT token
-    //   assert.isAtMost(Number(await mockPT.balanceOf(smartChef.address)), 1000000000);
-    // });
+    it('Cannot deploy a pool with SmartChefFactory if not owner', async () => {
+      await expect(
+        smartChefFactory.connect(bob).deployPool(
+          mockCAKE.address,
+          mockPT.address,
+          rewardPerBlock,
+          startBlock,
+          endBlock,
+          poolLimitPerUser,
+          0,
+          bob.address,
+        ),
+      ).to.be.revertedWith(
+        'Ownable: caller is not the owner',
+      );
+    });
 
-    // it('Cannot deploy a pool with SmartChefFactory if not owner', async () => {
-    //   await expectRevert(
-    //     smartChefFactory.deployPool(
-    //       mockCAKE.address,
-    //       mockPT.address,
-    //       rewardPerBlock,
-    //       startBlock,
-    //       endBlock,
-    //       poolLimitPerUser,
-    //       0,
-    //       pancakeProfile.address,
-    //       true,
-    //       0,
-    //       bob,
-    //       { from: bob },
-    //     ),
-    //     'Ownable: caller is not the owner',
-    //   );
-    // });
+    it('Cannot deploy a pool with wrong tokens', async () => {
+      await expect(
+        smartChefFactory.deployPool(
+          mockCAKE.address,
+          mockCAKE.address,
+          rewardPerBlock,
+          startBlock,
+          endBlock,
+          poolLimitPerUser,
+          0,
+          alice.address,
+        ),
+      ).to.be.revertedWith(
+        'Tokens must be be different',
+      );
 
-    // it('Cannot deploy a pool with wrong tokens', async () => {
-    //   await expectRevert(
-    //     smartChefFactory.deployPool(
-    //       mockCAKE.address,
-    //       mockCAKE.address,
-    //       rewardPerBlock,
-    //       startBlock,
-    //       endBlock,
-    //       poolLimitPerUser,
-    //       0,
-    //       pancakeProfile.address,
-    //       true,
-    //       0,
-    //       alice,
-    //       { from: alice },
-    //     ),
-    //     'Tokens must be be different',
-    //   );
-
-    //   await expectRevert(
-    //     smartChefFactory.deployPool(
-    //       mockCAKE.address,
-    //       smartChef.address,
-    //       rewardPerBlock,
-    //       startBlock,
-    //       endBlock,
-    //       poolLimitPerUser,
-    //       0,
-    //       pancakeProfile.address,
-    //       true,
-    //       0,
-    //       alice,
-    //       { from: alice },
-    //     ),
-    //     "function selector was not recognized and there's no fallback function",
-    //   );
-
-    //   await expectRevert(
-    //     smartChefFactory.deployPool(
-    //       alice,
-    //       mockCAKE.address,
-    //       rewardPerBlock,
-    //       startBlock,
-    //       endBlock,
-    //       poolLimitPerUser,
-    //       0,
-    //       pancakeProfile.address,
-    //       true,
-    //       0,
-    //       alice,
-    //       { from: alice },
-    //     ),
-    //     'function call to a non-contract account',
-    //   );
-    // });
+      await expect(
+        smartChefFactory.deployPool(
+          alice.address,
+          mockCAKE.address,
+          rewardPerBlock,
+          startBlock,
+          endBlock,
+          poolLimitPerUser,
+          0,
+          alice.address,
+        ),
+      ).to.be.revertedWith(
+        'Transaction reverted: function returned an unexpected amount of data',
+      );
+    });
   });
 
-//   describe('Owner can use recoverToken', async () => {
-//     const amount = parseEther('100').toString();
+  describe('Owner can use recoverToken', async () => {
+    const amount = parseEther('100').toString();
 
-//     it('Owner can recover token', async () => {
-//       await fakeCake.transfer(smartChef.address, amount, { from: alice });
+    it('Owner can recover token', async () => {
+      await fakeCake.transfer(smartChef.address, amount);
 
-//       result = await smartChef.recoverToken(fakeCake.address, { from: alice });
+      await expect(smartChef.recoverToken(fakeCake.address))
+        .to.emit(smartChef, 'TokenRecovery')
+        .withArgs(
+          fakeCake.address,
+          amount,
+        )
+        .to.emit(fakeCake, 'Transfer')
+        .withArgs(
+          smartChef.address,
+          alice.address,
+          amount,
+        );
+    });
 
-//       expectEvent(result, 'TokenRecovery', {
-//         token: fakeCake.address,
-//         amount,
-//       });
+    it('Owner cannot recover token if balance is zero', async () => {
+      await expect(
+        smartChef.recoverToken(fakeCake.address),
+      ).to.be.revertedWith(
+        'Operations: Cannot recover zero balance',
+      );
+    });
 
-//       expectEvent.inTransaction(result.receipt.transactionHash, fakeCake, 'Transfer', {
-//         from: smartChef.address,
-//         to: alice,
-//         value: amount,
-//       });
-//     });
+    it('Owner cannot recover staked token', async () => {
+      await expect(
+        smartChef.recoverToken(mockCAKE.address),
+      ).to.be.revertedWith(
+        'Operations: Cannot recover staked token',
+      );
+    });
 
-//     it('Owner cannot recover token if balance is zero', async () => {
-//       await expectRevert(
-//         smartChef.recoverToken(fakeCake.address, { from: alice }),
-//         'Operations: Cannot recover zero balance',
-//       );
-//     });
-
-//     it('Owner cannot recover staked token', async () => {
-//       await expectRevert(
-//         smartChef.recoverToken(mockCAKE.address, { from: alice }),
-//         'Operations: Cannot recover staked token',
-//       );
-//     });
-
-//     it('Owner cannot recover reward token', async () => {
-//       await expectRevert(
-//         smartChef.recoverToken(mockPT.address, { from: alice }),
-//         'Operations: Cannot recover reward token',
-//       );
-//     });
-//   });
+    it('Owner cannot recover reward token', async () => {
+      await expect(
+        smartChef.recoverToken(mockPT.address),
+      ).to.be.revertedWith(
+        'Operations: Cannot recover reward token',
+      );
+    });
+  });
 });
