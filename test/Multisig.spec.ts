@@ -13,7 +13,6 @@ describe('Multisig', () => {
   let owner5: SignerWithAddress;
   let wallet: MultiSigWallet;
   let Wallet: MultiSigWallet__factory;
-  // let chainId: number;
 
   before(async () => {
     [owner, owner2, owner3, owner4, owner5] = await ethers.getSigners();
@@ -39,6 +38,16 @@ describe('Multisig', () => {
       expect(await wallet.getTransactionCount(true, false))
         .to.be.equal(1);
     });
+    it('should revoke confirmation', async () => {
+      await wallet.connect(owner4).confirmTransaction(0);
+      expect(await wallet.getConfirmations(0)).to.be.deep.equal([owner.address, owner4.address]);
+      await wallet.connect(owner4).revokeConfirmation(0);
+      expect(await wallet.getConfirmations(0)).to.be.deep.equal([owner.address]);
+    });
+    it('should not revoke if not confirmation', async () => {
+      await expect(wallet.connect(owner5).revokeConfirmation(0)).to.be.revertedWith('Not confirmed');
+      expect(await wallet.getConfirmations(0)).to.be.deep.equal([owner.address]);
+    });
     it('should confirm transaction', async () => {
       const transaction = wallet.interface.encodeFunctionData('removeOwner', [owner5.address]);
       expect(await wallet.connect(owner3).confirmTransaction(0))
@@ -51,6 +60,10 @@ describe('Multisig', () => {
     });
     it('should reject if owner confirmed', async () => {
       await expect(wallet.connect(owner3).confirmTransaction(0)).to.be.revertedWith('Already confirmed');
+      expect(await wallet.getConfirmations(0)).to.be.deep.equal([owner.address, owner3.address]);
+    });
+    it('should reject execution if owner has not confirmed', async () => {
+      await expect(wallet.connect(owner5).executeTransaction(0)).to.be.revertedWith('Not confirmed');
       expect(await wallet.getConfirmations(0)).to.be.deep.equal([owner.address, owner3.address]);
     });
     it('should execute transaction', async () => {
