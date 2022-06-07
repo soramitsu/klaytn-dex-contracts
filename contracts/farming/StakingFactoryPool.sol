@@ -3,11 +3,10 @@ pragma solidity =0.8.12;
 
 import "../utils/Ownable.sol";
 import "../utils/ReentrancyGuard.sol";
-import "../tokens/KIP7.sol";
+import "../interfaces/IKIP7Metadata.sol";
 import "../libraries/TransferHelper.sol";
 
 contract StakingInitializable is Ownable, ReentrancyGuard {
-    using TransferHelper for IKIP7;
 
     // The address of the smart chef factory
     address public immutable STAKING_FACTORY;
@@ -43,10 +42,10 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
     uint256 public PRECISION_FACTOR;
 
     // The reward token
-    KIP7 public rewardToken;
+    IKIP7Metadata public rewardToken;
 
     // The staked token
-    KIP7 public stakedToken;
+    IKIP7Metadata public stakedToken;
 
     // Info of each user that stakes tokens (stakedToken)
     mapping(address => UserInfo) public userInfo;
@@ -96,8 +95,8 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
         // Make this contract initialized
         isInitialized = true;
 
-        stakedToken = KIP7(_stakedToken);
-        rewardToken = KIP7(_rewardToken);
+        stakedToken = IKIP7Metadata(_stakedToken);
+        rewardToken = IKIP7Metadata(_rewardToken);
         rewardPerBlock = _rewardPerBlock;
         startBlock = _startBlock;
         bonusEndBlock = _bonusEndBlock;
@@ -140,14 +139,14 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
                 PRECISION_FACTOR -
                 user.rewardDebt;
             if (pending > 0) {
-                rewardToken.safeTransfer(address(msg.sender), pending);
+                TransferHelper.safeTransfer(address(rewardToken), msg.sender, pending);
             }
         }
 
         if (_amount > 0) {
             user.amount = user.amount + _amount;
             stakedToken.safeTransferFrom(
-                address(msg.sender),
+                msg.sender,
                 address(this),
                 _amount
             );
@@ -174,11 +173,11 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
 
         if (_amount > 0) {
             user.amount = user.amount - _amount;
-            stakedToken.safeTransfer(address(msg.sender), _amount);
+            stakedToken.safeTransfer(msg.sender, _amount);
         }
 
         if (pending > 0) {
-            rewardToken.safeTransfer(address(msg.sender), pending);
+            TransferHelper.safeTransfer(address(rewardToken), msg.sender, pending);
         }
 
         user.rewardDebt = (user.amount * accTokenPerShare) / PRECISION_FACTOR;
@@ -208,7 +207,7 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
      * @dev Only callable by owner. Needs to be for emergency.
      */
     function emergencyRewardWithdraw(uint256 _amount) external onlyOwner {
-        rewardToken.safeTransfer(address(msg.sender), _amount);
+        TransferHelper.safeTransfer(address(rewardToken), msg.sender, _amount);
     }
 
     /**
@@ -388,5 +387,28 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
         }
 
         return true;
+    }
+
+    /**
+     * @notice Handle the receipt of KIP-7 token
+     * @dev The KIP-7 smart contract calls this function on the recipient
+     *  after a `safeTransfer`. This function MAY throw to revert and reject the
+     *  transfer. Return of other than the magic value MUST result in the
+     *  transaction being reverted.
+     *  Note: the contract address is always the message sender.
+     * @param _operator The address which called `safeTransferFrom` function
+     * @param _from The address which previously owned the token
+     * @param _amount The token amount which is being transferred.
+     * @param _data Additional data with no specified format
+     * @return `bytes4(keccak256("onKIP7Received(address,address,uint256,bytes)"))`
+     *  unless throwing
+     */
+    function onKIP7Received(
+        address _operator,
+        address _from,
+        uint256 _amount,
+        bytes memory _data
+    ) public pure returns (bytes4) {
+        return 0x9d188c22;
     }
 }
