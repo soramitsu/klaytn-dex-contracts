@@ -29,7 +29,8 @@ contract Farming is Ownable, ReentrancyGuard {
     // Info of each pool.
     struct PoolInfo {
         address lpToken; // Address of LP token contract.
-        uint64 bonusMultiplier; // Bonus multiplier for the farming pool
+        uint32 bonusMultiplier; // Bonus multiplier for the farming pool
+        uint64 bonusEndBlock; 
         uint256 stakingTokenTotalAmount;
         uint64 allocPoint; // How many allocation points assigned to this pool. PTNs to distribute per block.
         uint64 lastRewardBlock; // Last block number that PTNs distribution occurs.
@@ -83,21 +84,6 @@ contract Farming is Ownable, ReentrancyGuard {
         ptn = PlatformToken(_ptn);
         ptnPerBlock = _ptnPerBlock;
         startBlock = _startBlock;
-
-        // staking pool
-        poolInfo.push(
-            PoolInfo({
-                lpToken: _ptn,
-                bonusMultiplier: 1,
-                stakingTokenTotalAmount: 0,
-                allocPoint: 1000,
-                lastRewardBlock: startBlock.toUint64(),
-                accPtnPerShare: 0
-            })
-        );
-        addedTokens[_ptn] == true;
-        totalAllocPoint = 1000;
-        emit AddPool(poolInfo.length - 1, 1000, _ptn, 1);
     }
 
     /// @dev Update reward multiplier for `_pid` pool.
@@ -108,8 +94,7 @@ contract Farming is Ownable, ReentrancyGuard {
         onlyOwner
     {
         updatePool(_pid);
-        uint256 multiplier = _multiplier == 0 ? 1 : _multiplier;
-        poolInfo[_pid].bonusMultiplier = multiplier.toUint64();
+        poolInfo[_pid].bonusMultiplier = _multiplier.toUint32();
     }
 
     function updatePtnPerBlock(uint256 _ptnPerBlock) external onlyOwner {
@@ -128,7 +113,15 @@ contract Farming is Ownable, ReentrancyGuard {
         uint256 _from,
         uint256 _to
     ) public view returns (uint256) {
-        return (_to - _from) * poolInfo[_pid].bonusMultiplier;
+        if (_to <= poolInfo[_pid].bonusEndBlock) {
+            return (_to - _from) * poolInfo[_pid].bonusMultiplier;
+        } else if (_from >= poolInfo[_pid].bonusEndBlock) {
+            return _to - _from;
+        } else {
+            return
+                (poolInfo[_pid].bonusEndBlock -_from) * poolInfo[_pid].bonusMultiplier + (
+                    _to - poolInfo[_pid].bonusEndBlock);
+        }
     }
 
     /// @dev Returns the number of farming pools.
@@ -140,13 +133,15 @@ contract Farming is Ownable, ReentrancyGuard {
     /// @param _allocPoint Number of allocation points for the new pool.
     /// @param _lpToken Address of the LP KIP7 token.
     /// @param _withUpdate Whether call "massUpdatePools" operation.
-    /// @param _multiplier  The pool reward multipler.
+    /// @param _bonusMultiplier  The pool reward multipler.
     function add(
         uint256 _allocPoint,
         address _lpToken,
         bool _withUpdate,
-        uint256 _multiplier
+        uint256 _bonusMultiplier,
+        uint256 _bonusEndBlock
     ) public onlyOwner {
+        require(_lpToken != address(ptn), "Can't stake reward token");
         require(addedTokens[_lpToken] == false, "Token already added");
         if (_withUpdate) {
             massUpdatePools();
@@ -158,16 +153,17 @@ contract Farming is Ownable, ReentrancyGuard {
         poolInfo.push(
             PoolInfo({
                 lpToken: _lpToken,
-                bonusMultiplier: _multiplier.toUint64(),
+                bonusMultiplier: _bonusMultiplier.toUint32(),
+                bonusEndBlock: _bonusEndBlock.toUint64(),
                 stakingTokenTotalAmount: 0,
                 allocPoint: _allocPoint.toUint64(),
                 lastRewardBlock: lastRewardBlock.toUint64(),
                 accPtnPerShare: 0
             })
         );
-        updateStakingPool();
+        // updateStakingPool();
         addedTokens[_lpToken] = true;
-        emit AddPool(poolInfo.length - 1, _allocPoint, _lpToken, _multiplier);
+        emit AddPool(poolInfo.length - 1, _allocPoint, _lpToken, _bonusMultiplier);
     }
 
     /// @notice Update the given pool's PTN allocation point. Can only be called by the owner.
@@ -186,18 +182,9 @@ contract Farming is Ownable, ReentrancyGuard {
         if (prevAllocPoint != _allocPoint) {
             poolInfo[_pid].allocPoint = _allocPoint.toUint64();
             totalAllocPoint = totalAllocPoint - prevAllocPoint + _allocPoint;
-            updateStakingPool();
+            require(totalAllocPoint > 0, "Should be more than zero");
         }
         emit SetPool(_pid, _allocPoint);
-    }
-
-    function updateStakingPool() internal {
-        uint256 allocPool = totalAllocPoint - poolInfo[0].allocPoint;
-        uint256 points = allocPool / 3;
-        if (points != 0) {
-            totalAllocPoint = allocPool + points;
-            poolInfo[0].allocPoint = points.toUint64();
-        }
     }
 
     /// @dev Update PTN reward for all the active pools. Be careful of gas spending!
@@ -242,8 +229,6 @@ contract Farming is Ownable, ReentrancyGuard {
     /// @param _pid The id of the pool. See `poolInfo`.
     /// @param _amount Amount of LP tokens to deposit.
     function deposit(uint256 _pid, uint256 _amount) external nonReentrant {
-        require(_pid != 0, "deposit PTN by staking");
-
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         updatePool(_pid);
@@ -256,7 +241,7 @@ contract Farming is Ownable, ReentrancyGuard {
         }
         if (_amount > 0) {
             IKIP7(pool.lpToken).safeTransferFrom(
-                address(msg.sender),
+                msg.sender,
                 address(this),
                 _amount
             );
@@ -271,7 +256,6 @@ contract Farming is Ownable, ReentrancyGuard {
     /// @param _pid The id of the pool. See `poolInfo`.
     /// @param _amount Amount of LP tokens to withdraw.
     function withdraw(uint256 _pid, uint256 _amount) external nonReentrant {
-        require(_pid != 0, "withdraw PTN by unstaking");
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         require(user.amount >= _amount, "withdraw: not good");
@@ -285,57 +269,10 @@ contract Farming is Ownable, ReentrancyGuard {
         if (_amount > 0) {
             user.amount -= _amount;
             pool.stakingTokenTotalAmount -= _amount;
-            IKIP7(pool.lpToken).safeTransfer(address(msg.sender), _amount);
+            IKIP7(pool.lpToken).safeTransfer(msg.sender, _amount);
         }
         user.rewardDebt = (user.amount * pool.accPtnPerShare) / ACC_PRECISION;
         emit Withdraw(msg.sender, _pid, _amount);
-    }
-
-    /// @dev Stake PTN tokens to the separate PTN pool
-    /// @param _amount Amount of PTN tokens to stake.
-    function enterStaking(uint256 _amount) external nonReentrant {
-        PoolInfo storage pool = poolInfo[0];
-        UserInfo storage user = userInfo[0][msg.sender];
-        updatePool(0);
-        if (user.amount > 0) {
-            uint256 pending = ((user.amount * pool.accPtnPerShare) /
-                ACC_PRECISION) - user.rewardDebt;
-            if (pending > 0) {
-                safePtnTransfer(msg.sender, pending);
-            }
-        }
-        if (_amount > 0) {
-            IKIP7(pool.lpToken).safeTransferFrom(
-                address(msg.sender),
-                address(this),
-                _amount
-            );
-            pool.stakingTokenTotalAmount += _amount;
-            user.amount += _amount;
-        }
-        user.rewardDebt = (user.amount * pool.accPtnPerShare) / ACC_PRECISION;
-        emit Deposit(msg.sender, 0, _amount);
-    }
-
-    /// @dev Withdraw PTN tokens from the separate pool.
-    /// @param _amount Amount of PTN tokens to unstake.
-    function leaveStaking(uint256 _amount) external nonReentrant {
-        PoolInfo storage pool = poolInfo[0];
-        UserInfo storage user = userInfo[0][msg.sender];
-        require(user.amount >= _amount, "withdraw: not good");
-        updatePool(0);
-        uint256 pending = ((user.amount * pool.accPtnPerShare) /
-            ACC_PRECISION) - user.rewardDebt;
-        if (pending > 0) {
-            safePtnTransfer(msg.sender, pending);
-        }
-        if (_amount > 0) {
-            user.amount -= _amount;
-            pool.stakingTokenTotalAmount -= _amount;
-            IKIP7(pool.lpToken).safeTransfer(address(msg.sender), _amount);
-        }
-        user.rewardDebt = (user.amount * pool.accPtnPerShare) / ACC_PRECISION;
-        emit Withdraw(msg.sender, 0, _amount);
     }
 
     /// @dev Safe PTN transfer function, just in case if rounding error causes pool to not have enough PTNs.
@@ -361,7 +298,7 @@ contract Farming is Ownable, ReentrancyGuard {
         user.amount = 0;
         user.rewardDebt = 0;
 
-        IKIP7(pool.lpToken).safeTransfer(address(msg.sender), oldUserAmount);
+        IKIP7(pool.lpToken).safeTransfer(msg.sender, oldUserAmount);
         emit EmergencyWithdraw(msg.sender, _pid, oldUserAmount);
     }
 
