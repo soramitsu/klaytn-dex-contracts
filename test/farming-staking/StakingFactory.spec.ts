@@ -67,19 +67,18 @@ describe('Smart Chef Factory', () => {
 
     it('Initial parameters are correct', async () => {
       expect(await smartChef.PRECISION_FACTOR()).to.be.equal('1000000000000');
-      // expect(await smartChef.lastRewardBlock()).to.be.equal(startBlock);
-      // assert.equal(String(await smartChef.rewardPerBlock()), rewardPerBlock.toString());
-      // assert.equal(String(await smartChef.poolLimitPerUser()), poolLimitPerUser.toString());
-      // assert.equal(String(await smartChef.startBlock()), startBlock.toString());
-      // assert.equal(String(await smartChef.bonusEndBlock()), endBlock.toString());
+      const pool = await smartChef.pool();
+      expect(pool.lastRewardBlock).to.be.equal(startBlock);
+      assert.equal(String(pool.rewardPerBlock), rewardPerBlock.toString());
+      assert.equal(String(pool.poolLimitPerUser), poolLimitPerUser.toString());
+      assert.equal(String(pool.startBlock), startBlock.toString());
+      assert.equal(String(pool.bonusEndBlock), endBlock.toString());
       assert.equal(await smartChef.hasUserLimit(), false);
       assert.equal(await smartChef.owner(), alice.address);
 
       // Transfer 4000 PT token to the contract (400 blocks with 10 PT/block)
       await mockPT.transfer(smartChef.address, parseEther('4000'));
     });
-/// 78998  ·     101436  ·      85407
-/// 74174  ·     142618  ·     101212 
     it('Users deposit', async () => {
       for (const thisUser of [bob, carol, david, erin]) {
         await mockCAKE.transfer(thisUser.address, parseEther('1000'));
@@ -254,3 +253,11 @@ describe('Smart Chef Factory', () => {
     });
   });
 });
+
+/// gas before
+/// deposit 78998  ·     101436  ·      85407
+/// withdraw 74174  ·     142618  ·     101212
+
+/// gas now
+/// deposit 75269  ·      98333  ·      82095
+/// withdraw 75269  ·      98333  ·      82095
