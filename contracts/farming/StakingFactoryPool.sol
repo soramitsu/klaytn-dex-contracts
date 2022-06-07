@@ -5,55 +5,50 @@ import "../utils/Ownable.sol";
 import "../utils/ReentrancyGuard.sol";
 import "../interfaces/IKIP7Metadata.sol";
 import "../libraries/TransferHelper.sol";
+import "../utils/SafeCast.sol";
 
 contract StakingInitializable is Ownable, ReentrancyGuard {
-
+    using SafeCast for uint256;
     // The address of the smart chef factory
     address public immutable STAKING_FACTORY;
-
-    // Whether a limit is set for users
-    bool public userLimit;
-
-    // Whether it is initialized
-    bool public isInitialized;
-
-    // Accrued token per share
-    uint256 public accTokenPerShare;
-
-    // The block number when PTN mining ends.
-    uint256 public bonusEndBlock;
-
-    // The block number when PTN mining starts.
-    uint256 public startBlock;
-
-    // The block number of the last pool update
-    uint256 public lastRewardBlock;
-
-    // The pool limit (0 if none)
-    uint256 public poolLimitPerUser;
-
-    // Block numbers available for user limit (after start block)
-    uint256 public numberBlocksForUserLimit;
-
-    // PTN tokens created per block.
-    uint256 public rewardPerBlock;
-
     // The precision factor
     uint256 public PRECISION_FACTOR;
 
-    // The reward token
-    IKIP7Metadata public rewardToken;
+    struct PoolInfo {
+        // Whether it is initialized
+        bool isInitialized;
+        // The staked token
+        address stakedToken;
+        // Whether a limit is set for users
+        bool userLimit;
+        // The reward token
+        address rewardToken;
+        // The block number when PTN mining starts.
+        uint64 startBlock;
+        // The block number when PTN mining ends.
+        uint64 bonusEndBlock;
+        // The block number of the last pool update
+        uint64 lastRewardBlock;
+        // Block numbers available for user limit (after start block)
+        uint64 numberBlocksForUserLimit;
+        // The pool limit (0 if none)
+        uint256 poolLimitPerUser;
+        // Accrued token per share
+        uint256 accTokenPerShare;
+        // PTN tokens created per block.
+        uint256 rewardPerBlock;
+    }
 
-    // The staked token
-    IKIP7Metadata public stakedToken;
-
-    // Info of each user that stakes tokens (stakedToken)
-    mapping(address => UserInfo) public userInfo;
+    PoolInfo public pool;
 
     struct UserInfo {
         uint256 amount; // How many staked tokens the user has provided
         uint256 rewardDebt; // Reward debt
     }
+    // Info of each user that stakes tokens (stakedToken)
+    mapping(address => UserInfo) public userInfo;
+
+    
 
     event Deposit(address indexed user, uint256 amount);
     event EmergencyWithdraw(address indexed user, uint256 amount);
@@ -89,31 +84,35 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
         uint256 _numberBlocksForUserLimit,
         address _admin
     ) external {
-        require(!isInitialized, "Already initialized");
+        require(!pool.isInitialized, "Already initialized");
         require(msg.sender == STAKING_FACTORY, "Not factory");
 
         // Make this contract initialized
-        isInitialized = true;
+        pool.isInitialized = true;
 
-        stakedToken = IKIP7Metadata(_stakedToken);
-        rewardToken = IKIP7Metadata(_rewardToken);
-        rewardPerBlock = _rewardPerBlock;
-        startBlock = _startBlock;
-        bonusEndBlock = _bonusEndBlock;
+        pool.stakedToken = _stakedToken;
+        pool.rewardToken = _rewardToken;
+        pool.startBlock = _startBlock.toUint64();
+        pool.bonusEndBlock = _bonusEndBlock.toUint64();
+        pool.lastRewardBlock = _startBlock.toUint64();
+        pool.accTokenPerShare = 0;
+        pool.rewardPerBlock = _rewardPerBlock;
+        // startBlock = _startBlock;
+        // bonusEndBlock = _bonusEndBlock;
 
         if (_poolLimitPerUser > 0) {
-            userLimit = true;
-            poolLimitPerUser = _poolLimitPerUser;
-            numberBlocksForUserLimit = _numberBlocksForUserLimit;
+            pool.userLimit = true;
+            pool.poolLimitPerUser = _poolLimitPerUser;
+            pool.numberBlocksForUserLimit = _numberBlocksForUserLimit.toUint64();
         }
 
-        uint256 decimalsRewardToken = uint256(rewardToken.decimals());
+        uint256 decimalsRewardToken = uint256(IKIP7Metadata(_rewardToken).decimals());
         require(decimalsRewardToken < 30, "Must be less than 30");
 
         PRECISION_FACTOR = uint256(10**(uint256(30) - decimalsRewardToken));
 
         // Set the lastRewardBlock as the startBlock
-        lastRewardBlock = startBlock;
+        // lastRewardBlock = startBlock;
 
         // Transfer ownership to the admin address who becomes owner of the contract
         transferOwnership(_admin);
@@ -125,34 +124,36 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
      */
     function deposit(uint256 _amount) external nonReentrant {
         UserInfo storage user = userInfo[msg.sender];
-        userLimit = hasUserLimit();
+        pool.userLimit = hasUserLimit();
 
         require(
-            !userLimit || ((_amount + user.amount) <= poolLimitPerUser),
+            !pool.userLimit || ((_amount + user.amount) <= pool.poolLimitPerUser),
             "Deposit: Amount above limit"
         );
 
         _updatePool();
-
+        uint share = pool.accTokenPerShare;
         if (user.amount > 0) {
-            uint256 pending = (user.amount * accTokenPerShare) /
+            uint256 pending = (user.amount * share) /
                 PRECISION_FACTOR -
                 user.rewardDebt;
             if (pending > 0) {
-                TransferHelper.safeTransfer(address(rewardToken), msg.sender, pending);
+                TransferHelper.safeTransfer(
+                    pool.rewardToken,
+                    msg.sender,
+                    pending
+                );
             }
         }
 
         if (_amount > 0) {
             user.amount = user.amount + _amount;
-            stakedToken.safeTransferFrom(
-                msg.sender,
-                address(this),
-                _amount
-            );
+            TransferHelper.safeTransferFrom(pool.stakedToken, msg.sender, address(this), _amount);
         }
 
-        user.rewardDebt = (user.amount * accTokenPerShare) / PRECISION_FACTOR;
+        user.rewardDebt =
+            (user.amount * share) /
+            PRECISION_FACTOR;
 
         emit Deposit(msg.sender, _amount);
     }
@@ -166,21 +167,27 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
         require(user.amount >= _amount, "Amount to withdraw too high");
 
         _updatePool();
-
-        uint256 pending = (user.amount * accTokenPerShare) /
+        uint share = pool.accTokenPerShare;
+        uint256 pending = (user.amount * share) /
             PRECISION_FACTOR -
             user.rewardDebt;
 
         if (_amount > 0) {
             user.amount = user.amount - _amount;
-            stakedToken.safeTransfer(msg.sender, _amount);
+            TransferHelper.safeTransfer(pool.stakedToken, msg.sender, _amount);
         }
 
         if (pending > 0) {
-            TransferHelper.safeTransfer(address(rewardToken), msg.sender, pending);
+            TransferHelper.safeTransfer(
+                pool.rewardToken,
+                msg.sender,
+                pending
+            );
         }
 
-        user.rewardDebt = (user.amount * accTokenPerShare) / PRECISION_FACTOR;
+        user.rewardDebt =
+            (user.amount * share) /
+            PRECISION_FACTOR;
 
         emit Withdraw(msg.sender, _amount);
     }
@@ -196,7 +203,7 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
         user.rewardDebt = 0;
 
         if (amountToTransfer > 0) {
-            stakedToken.safeTransfer(address(msg.sender), amountToTransfer);
+            TransferHelper.safeTransfer(pool.stakedToken, address(msg.sender), amountToTransfer);
         }
 
         emit EmergencyWithdraw(msg.sender, user.amount);
@@ -207,7 +214,7 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
      * @dev Only callable by owner. Needs to be for emergency.
      */
     function emergencyRewardWithdraw(uint256 _amount) external onlyOwner {
-        TransferHelper.safeTransfer(address(rewardToken), msg.sender, _amount);
+        TransferHelper.safeTransfer(pool.rewardToken, msg.sender, _amount);
     }
 
     /**
@@ -217,18 +224,18 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
      */
     function recoverToken(address _token) external onlyOwner {
         require(
-            _token != address(stakedToken),
+            _token != pool.stakedToken,
             "Operations: Cannot recover staked token"
         );
         require(
-            _token != address(rewardToken),
+            _token != pool.rewardToken,
             "Operations: Cannot recover reward token"
         );
 
-        uint256 balance = IKIP7(_token).balanceOf(address(this));
+        uint256 balance = IKIP7Metadata(_token).balanceOf(address(this));
         require(balance != 0, "Operations: Cannot recover zero balance");
 
-        IKIP7(_token).safeTransfer(address(msg.sender), balance);
+        TransferHelper.safeTransfer(_token, address(msg.sender), balance);
 
         emit TokenRecovery(_token, balance);
     }
@@ -238,8 +245,8 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
      * @dev Only callable by owner
      */
     function stopReward() external onlyOwner {
-        bonusEndBlock = block.number;
-        emit RewardsStop(bonusEndBlock);
+        pool.bonusEndBlock = (block.number).toUint64();
+        emit RewardsStop(pool.bonusEndBlock);
     }
 
     /*
@@ -252,18 +259,18 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
         external
         onlyOwner
     {
-        require(userLimit, "Must be set");
+        require(pool.userLimit, "Must be set");
         if (_userLimit) {
             require(
-                _poolLimitPerUser > poolLimitPerUser,
+                _poolLimitPerUser > pool.poolLimitPerUser,
                 "New limit must be higher"
             );
-            poolLimitPerUser = _poolLimitPerUser;
+            pool.poolLimitPerUser = _poolLimitPerUser;
         } else {
-            userLimit = _userLimit;
-            poolLimitPerUser = 0;
+            pool.userLimit = _userLimit;
+            pool.poolLimitPerUser = 0;
         }
-        emit NewPoolLimit(poolLimitPerUser);
+        emit NewPoolLimit(pool.poolLimitPerUser);
     }
 
     /*
@@ -272,8 +279,8 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
      * @param _rewardPerBlock: the reward per block
      */
     function updateRewardPerBlock(uint256 _rewardPerBlock) external onlyOwner {
-        require(block.number < startBlock, "Pool has started");
-        rewardPerBlock = _rewardPerBlock;
+        require(block.number < pool.startBlock, "Pool has started");
+        pool.rewardPerBlock = _rewardPerBlock;
         emit NewRewardPerBlock(_rewardPerBlock);
     }
 
@@ -287,7 +294,7 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
         uint256 _startBlock,
         uint256 _bonusEndBlock
     ) external onlyOwner {
-        require(block.number < startBlock, "Pool has started");
+        require(block.number < pool.startBlock, "Pool has started");
         require(
             _startBlock < _bonusEndBlock,
             "New startBlock must be lower than new endBlock"
@@ -297,11 +304,11 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
             "New startBlock must be higher than current block"
         );
 
-        startBlock = _startBlock;
-        bonusEndBlock = _bonusEndBlock;
+        pool.startBlock = _startBlock.toUint64();
+        pool.bonusEndBlock = _bonusEndBlock.toUint64();
 
         // Set the lastRewardBlock as the startBlock
-        lastRewardBlock = startBlock;
+        pool.lastRewardBlock = _startBlock.toUint64();
 
         emit NewStartAndEndBlocks(_startBlock, _bonusEndBlock);
     }
@@ -313,11 +320,15 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
      */
     function pendingReward(address _user) external view returns (uint256) {
         UserInfo storage user = userInfo[_user];
-        uint256 stakedTokenSupply = stakedToken.balanceOf(address(this));
-        if (block.number > lastRewardBlock && stakedTokenSupply != 0) {
-            uint256 multiplier = _getMultiplier(lastRewardBlock, block.number);
-            uint256 ptnReward = multiplier * rewardPerBlock;
-            uint256 adjustedTokenPerShare = accTokenPerShare +
+        uint256 stakedTokenSupply = IKIP7Metadata(pool.stakedToken).balanceOf(address(this));
+        uint share = pool.accTokenPerShare;
+        if (block.number > pool.lastRewardBlock && stakedTokenSupply != 0) {
+            uint256 multiplier = _getMultiplier(
+                pool.lastRewardBlock,
+                block.number
+            );
+            uint256 ptnReward = multiplier * pool.rewardPerBlock;
+            uint256 adjustedTokenPerShare = share +
                 (ptnReward * PRECISION_FACTOR) /
                 stakedTokenSupply;
             return
@@ -326,7 +337,7 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
                 user.rewardDebt;
         } else {
             return
-                (user.amount * accTokenPerShare) /
+                (user.amount * share) /
                 PRECISION_FACTOR -
                 user.rewardDebt;
         }
@@ -336,24 +347,24 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
      * @notice Update reward variables of the given pool to be up-to-date.
      */
     function _updatePool() internal {
-        if (block.number <= lastRewardBlock) {
+        if (block.number <= pool.lastRewardBlock) {
             return;
         }
 
-        uint256 stakedTokenSupply = stakedToken.balanceOf(address(this));
+        uint256 stakedTokenSupply = IKIP7Metadata(pool.stakedToken).balanceOf(address(this));
 
         if (stakedTokenSupply == 0) {
-            lastRewardBlock = block.number;
+            pool.lastRewardBlock = (block.number).toUint64();
             return;
         }
 
-        uint256 multiplier = _getMultiplier(lastRewardBlock, block.number);
-        uint256 ptnReward = multiplier * rewardPerBlock;
-        accTokenPerShare =
-            accTokenPerShare +
+        uint256 multiplier = _getMultiplier(pool.lastRewardBlock, block.number);
+        uint256 ptnReward = multiplier * pool.rewardPerBlock;
+        pool.accTokenPerShare =
+            pool.accTokenPerShare +
             (ptnReward * PRECISION_FACTOR) /
             stakedTokenSupply;
-        lastRewardBlock = block.number;
+        pool.lastRewardBlock = (block.number).toUint64();
     }
 
     /*
@@ -366,12 +377,12 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
         view
         returns (uint256)
     {
-        if (_to <= bonusEndBlock) {
+        if (_to <= pool.bonusEndBlock) {
             return _to - _from;
-        } else if (_from >= bonusEndBlock) {
+        } else if (_from >= pool.bonusEndBlock) {
             return 0;
         } else {
-            return bonusEndBlock - _from;
+            return pool.bonusEndBlock - _from;
         }
     }
 
@@ -380,35 +391,12 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
      */
     function hasUserLimit() public view returns (bool) {
         if (
-            !userLimit ||
-            (block.number >= (startBlock + numberBlocksForUserLimit))
+            !pool.userLimit ||
+            (block.number >= (pool.startBlock + pool.numberBlocksForUserLimit))
         ) {
             return false;
         }
 
         return true;
-    }
-
-    /**
-     * @notice Handle the receipt of KIP-7 token
-     * @dev The KIP-7 smart contract calls this function on the recipient
-     *  after a `safeTransfer`. This function MAY throw to revert and reject the
-     *  transfer. Return of other than the magic value MUST result in the
-     *  transaction being reverted.
-     *  Note: the contract address is always the message sender.
-     * @param _operator The address which called `safeTransferFrom` function
-     * @param _from The address which previously owned the token
-     * @param _amount The token amount which is being transferred.
-     * @param _data Additional data with no specified format
-     * @return `bytes4(keccak256("onKIP7Received(address,address,uint256,bytes)"))`
-     *  unless throwing
-     */
-    function onKIP7Received(
-        address _operator,
-        address _from,
-        uint256 _amount,
-        bytes memory _data
-    ) public pure returns (bytes4) {
-        return 0x9d188c22;
     }
 }
