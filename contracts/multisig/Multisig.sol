@@ -7,7 +7,7 @@ import "../utils/EnumerableSet.sol";
 /// @author Stefan George - <stefan.george@consensys.net>
 contract MultiSigWallet {
     using EnumerableSet for EnumerableSet.AddressSet;
-    
+
     /*
      *  Events
      */
@@ -30,13 +30,9 @@ contract MultiSigWallet {
      *  Storage
      */
     mapping(uint256 => Transaction) private transactions;
-    // mapping(uint256 => mapping(address => bool)) public confirmations;
     EnumerableSet.AddressSet private owners;
-    // mapping(address => bool) public isOwner;
-    // address[] public owners;
     uint256 public required;
     uint256 public transactionCount;
-    
 
     struct Transaction {
         address destination;
@@ -68,16 +64,6 @@ contract MultiSigWallet {
         require(transactions[transactionId].destination != address(0));
         _;
     }
-
-    // modifier confirmed(uint256 transactionId, address owner) {
-    //     require(transactions[transactionId].confirmations.contains(owner));
-    //     _;
-    // }
-
-    // modifier notConfirmed(uint256 transactionId, address owner) {
-    //     require(!transactions[transactionId].confirmations.contains(owner));
-    //     _;
-    // }
 
     modifier notExecuted(uint256 transactionId) {
         require(!transactions[transactionId].executed);
@@ -112,9 +98,7 @@ contract MultiSigWallet {
     {
         for (uint256 i = 0; i < _owners.length; i++) {
             require(_owners[i] != address(0) && owners.add(_owners[i]));
-            // isOwner[_owners[i]] = true;
         }
-        // owners = _owners;
         required = _required;
     }
 
@@ -131,23 +115,14 @@ contract MultiSigWallet {
         validRequirement(owners.length() + 1, required)
     {
         owners.add(owner);
-        // owners.push(owner);
         emit OwnerAddition(owner);
     }
 
     /// @dev Allows to remove an owner. Transaction has to be sent by wallet.
     /// @param owner Address of owner.
     function removeOwner(address owner) public onlyWallet ownerExists(owner) {
-        // isOwner[owner] = false;
-        // for (uint256 i = 0; i < owners.length - 1; i++)
-        //     if (owners[i] == owner) {
-        //         owners[i] = owners[owners.length - 1];
-        //         break;
-        //     }
-        // owners.length -= 1;
         owners.remove(owner);
-        if (required > owners.length())
-            changeRequirement(owners.length());
+        if (required > owners.length()) changeRequirement(owners.length());
         emit OwnerRemoval(owner);
     }
 
@@ -160,15 +135,8 @@ contract MultiSigWallet {
         ownerExists(owner)
         ownerDoesNotExist(newOwner)
     {
-        // for (uint256 i = 0; i < owners.length; i++)
-        //     if (owners[i] == owner) {
-        //         owners[i] = newOwner;
-        //         break;
-        //     }
         owners.remove(owner);
         owners.add(newOwner);
-        // isOwner[owner] = false;
-        // isOwner[newOwner] = true;
         emit OwnerRemoval(owner);
         emit OwnerAddition(newOwner);
     }
@@ -204,9 +172,11 @@ contract MultiSigWallet {
         public
         ownerExists(msg.sender)
         transactionExists(transactionId)
-        /// notConfirmed(transactionId, msg.sender)
-    {   
-        require(!transactions[transactionId].confirmations.contains(msg.sender), "Already confirmed");
+    {
+        require(
+            !transactions[transactionId].confirmations.contains(msg.sender),
+            "Already confirmed"
+        );
         transactions[transactionId].confirmations.add(msg.sender);
         emit Confirmation(msg.sender, transactionId);
         executeTransaction(transactionId);
@@ -217,10 +187,12 @@ contract MultiSigWallet {
     function revokeConfirmation(uint256 transactionId)
         public
         ownerExists(msg.sender)
-        /// confirmed(transactionId, msg.sender)
         notExecuted(transactionId)
-    {   
-        require(transactions[transactionId].confirmations.contains(msg.sender), "Not confirmed");
+    {
+        require(
+            transactions[transactionId].confirmations.contains(msg.sender),
+            "Not confirmed"
+        );
         transactions[transactionId].confirmations.remove(msg.sender);
         emit Revocation(msg.sender, transactionId);
     }
@@ -230,10 +202,12 @@ contract MultiSigWallet {
     function executeTransaction(uint256 transactionId)
         public
         ownerExists(msg.sender)
-        /// confirmed(transactionId, msg.sender)
         notExecuted(transactionId)
-    {   
-        require(transactions[transactionId].confirmations.contains(msg.sender), "Not confirmed");
+    {
+        require(
+            transactions[transactionId].confirmations.contains(msg.sender),
+            "Not confirmed"
+        );
         if (isConfirmed(transactionId)) {
             Transaction storage txn = transactions[transactionId];
             txn.executed = true;
@@ -282,14 +256,15 @@ contract MultiSigWallet {
     /// @dev Returns the confirmation status of a transaction.
     /// @param transactionId Transaction ID.
     /// @return confirmed_ Confirmation status.
-    function isConfirmed(uint256 transactionId) public view returns (bool confirmed_) {
-        confirmed_ = transactions[transactionId].confirmations.length() >= required ? true : false;
-        
-        // uint length = owners.length();
-        // for (uint256 i = 0; i < length; i++) {
-        //     if (confirmations[transactionId][owners.at(i)]) count += 1;
-        //     if (count == required) return true;
-        // }
+    function isConfirmed(uint256 transactionId)
+        public
+        view
+        returns (bool confirmed_)
+    {
+        confirmed_ = transactions[transactionId].confirmations.length() >=
+            required
+            ? true
+            : false;
     }
 
     /*
@@ -318,19 +293,6 @@ contract MultiSigWallet {
     /*
      * Web3 call functions
      */
-    // /// @dev Returns number of confirmations of a transaction.
-    // /// @param transactionId Transaction ID.
-    // /// @return count Number of confirmations.
-    // function getConfirmationCount(uint256 transactionId)
-    //     external
-    //     view
-    //     returns (uint256 count)
-    // {   
-    //     count = transactions[transactionId].confirmations.length();
-    //     // for (uint256 i = 0; i < owners.length(); i++)
-    //     //     if (confirmations[transactionId][owners.at(i)]) count += 1;
-    // }
-
     /// @dev Returns total number of transactions after filers are applied.
     /// @param pending Include pending transactions.
     /// @param executed Include executed transactions.
@@ -360,18 +322,7 @@ contract MultiSigWallet {
         public
         view
         returns (address[] memory _confirmations)
-    {   
-        // uint length = owners.length();
-        // address[] memory confirmationsTemp = new address[](length);
-        // uint256 count = 0;
-        // uint256 i;
-        // for (i = 0; i < length; i++)
-        //     if (transactions[transactionId].confirmations.contains(owners.at(i))) {
-        //         confirmationsTemp[count] = owners.at(i);
-        //         count += 1;
-        //     }
-        // _confirmations = new address[](count);
-        // for (i = 0; i < count; i++) _confirmations[i] = confirmationsTemp[i];
+    {
         _confirmations = transactions[transactionId].confirmations.values();
     }
 
@@ -406,12 +357,16 @@ contract MultiSigWallet {
     /// @dev Returns transaction info.
     /// @param transactionId Transaction ID.
     /// .
-    function getTransactionInfo(uint256 transactionId) external view returns (address destination_,
-        uint256 value_,
-        bytes memory data_, 
-        bool executed_,
-        uint256 votesLength_
-        ) 
+    function getTransactionInfo(uint256 transactionId)
+        external
+        view
+        returns (
+            address destination_,
+            uint256 value_,
+            bytes memory data_,
+            bool executed_,
+            uint256 votesLength_
+        )
     {
         Transaction storage transaction = transactions[transactionId];
         value_ = transaction.value;
