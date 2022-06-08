@@ -252,11 +252,3 @@ describe('Smart Chef Factory', () => {
     });
   });
 });
-
-/// gas before refactoring
-/// deposit 78998  ·     101436  ·      85407
-/// withdraw 74174  ·     142618  ·     101212
-
-/// gas now
-/// deposit 75269  ·      98333  ·      82095
-/// withdraw 75269  ·      98333  ·      82095
