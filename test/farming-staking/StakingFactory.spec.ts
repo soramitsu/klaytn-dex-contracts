@@ -1,6 +1,7 @@
 /* eslint-disable no-await-in-loop */
 import { parseEther } from 'ethers/lib/utils';
 import { ethers } from 'hardhat';
+import { BigNumber } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { expect, assert } from 'chai';
 import { StakingFactory__factory } from '../../typechain/factories/StakingFactory__factory';
@@ -18,9 +19,9 @@ describe('Smart Chef Factory', () => {
   let erin: SignerWithAddress;
   let SmartChefFactory: StakingFactory__factory;
   let MockERC20: KIP7Mock__factory;
-  let blockNumber;
-  let startBlock: any;
-  let endBlock: any;
+  let blockNumber: number;
+  let startBlock: BigNumber;
+  let endBlock: BigNumber;
 
   const poolLimitPerUser = parseEther('0');
   const rewardPerBlock = parseEther('10');
@@ -67,18 +68,18 @@ describe('Smart Chef Factory', () => {
 
     it('Initial parameters are correct', async () => {
       expect(await smartChef.PRECISION_FACTOR()).to.be.equal('1000000000000');
-      expect(await smartChef.lastRewardBlock()).to.be.equal(startBlock);
-      assert.equal(String(await smartChef.rewardPerBlock()), rewardPerBlock.toString());
-      assert.equal(String(await smartChef.poolLimitPerUser()), poolLimitPerUser.toString());
-      assert.equal(String(await smartChef.startBlock()), startBlock.toString());
-      assert.equal(String(await smartChef.bonusEndBlock()), endBlock.toString());
+      const pool = await smartChef.pool();
+      expect(pool.lastRewardBlock).to.be.equal(startBlock);
+      assert.equal(String(pool.rewardPerBlock), rewardPerBlock.toString());
+      assert.equal(String(pool.poolLimitPerUser), poolLimitPerUser.toString());
+      assert.equal(String(pool.startBlock), startBlock.toString());
+      assert.equal(String(pool.bonusEndBlock), endBlock.toString());
       assert.equal(await smartChef.hasUserLimit(), false);
       assert.equal(await smartChef.owner(), alice.address);
 
       // Transfer 4000 PT token to the contract (400 blocks with 10 PT/block)
       await mockPT.transfer(smartChef.address, parseEther('4000'));
     });
-
     it('Users deposit', async () => {
       for (const thisUser of [bob, carol, david, erin]) {
         await mockCAKE.transfer(thisUser.address, parseEther('1000'));
@@ -146,12 +147,10 @@ describe('Smart Chef Factory', () => {
 
     it('Advance to end of IFO', async () => {
       await advanceBlockTo(endBlock.toNumber() + 1);
-      console.log(endBlock, await ethers.provider.getBlockNumber());
-      console.log(await smartChef.pendingReward(bob.address));
       for (const thisUser of [bob, david, erin]) {
         await smartChef.connect(thisUser).withdraw(parseEther('100'));
+        expect(await smartChef.pendingReward(thisUser.address)).to.be.equal(0);
       }
-      console.log(await smartChef.pendingReward(bob.address));
       await smartChef.connect(carol).withdraw(parseEther('50'));
 
       // 0.000000001 PT token

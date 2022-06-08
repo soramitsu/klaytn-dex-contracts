@@ -54,7 +54,9 @@ contract StakingFactory is Ownable {
             _numberBlocksForUserLimit,
             _admin
         );
-
         emit NewStakingContract(staking);
+
+        // Transfer ownership to the admin address who becomes owner of the contract
+        transferOwnership(_admin);
     }
 }
