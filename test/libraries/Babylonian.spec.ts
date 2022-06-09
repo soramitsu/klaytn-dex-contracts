@@ -1,9 +1,10 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
-import { Contract, BigNumber, constants } from 'ethers';
+import { BigNumber, constants } from 'ethers';
+import { BabylonianTest } from '../../typechain/BabylonianTest';
 
 describe('Babylonian', async () => {
-  let babylonian: Contract;
+  let babylonian: BabylonianTest;
 
   before('deploy BabylonianTest', async () => {
     const babylonianFactoty = await ethers.getContractFactory('BabylonianTest');
@@ -22,9 +23,9 @@ describe('Babylonian', async () => {
     it('product of numbers close to max uint112', async () => {
       const max = BigNumber.from(2).pow(112).sub(1);
       expect(await babylonian.sqrt(max.mul(max))).to.eq(max);
-      const maxMinus1 = max.sub(1);
+      const maxMinus1 = max.sub(BigNumber.from(1));
       expect(await babylonian.sqrt(maxMinus1.mul(maxMinus1))).to.eq(maxMinus1);
-      const maxMinus2 = max.sub(2);
+      const maxMinus2 = max.sub(BigNumber.from(2));
       expect(await babylonian.sqrt(maxMinus2.mul(maxMinus2))).to.eq(maxMinus2);
 
       expect(await babylonian.sqrt(max.mul(maxMinus1))).to.eq(maxMinus1);
@@ -38,7 +39,7 @@ describe('Babylonian', async () => {
     });
 
     it('gas cost [ @skip-on-coverage ]', async () => {
-      expect(await babylonian.getGasCostOfSqrt(150)).to.eq(1388);
+      expect(await babylonian.getGasCostOfSqrt(BigNumber.from(150))).to.eq(1388);
     });
 
     it('gas cost of large number [ @skip-on-coverage ]', async () => {

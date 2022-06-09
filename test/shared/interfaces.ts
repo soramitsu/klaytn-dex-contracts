@@ -1,4 +1,4 @@
-import { DexFactory} from '../../typechain/DexFactory';
+import { DexFactory } from '../../typechain/DexFactory';
 import { DexPair } from '../../typechain/DexPair';
 import { KIP7Mock } from '../../typechain/KIP7Mock';
 import { DexRouter } from '../../typechain/DexRouter';

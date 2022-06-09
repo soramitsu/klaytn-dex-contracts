@@ -24,7 +24,7 @@ describe('Farming', () => {
     const ptnFactory = await ethers.getContractFactory('PlatformToken');
     lpFactory = await ethers.getContractFactory('DexKIP7Test');
     farmingFactory = await ethers.getContractFactory('Farming');
-    ptn = await ptnFactory.deploy('PlatformToken', 'PTN', 18);
+    ptn = await ptnFactory.deploy('PlatformToken', 'PTN');
     expect(await ptn.hasRole((await ptn.DEFAULT_ADMIN_ROLE()), minter.address)).to.be.equal(true);
     lp1 = await lpFactory.deploy('1000000');
     lp2 = await lpFactory.deploy('1000000');
