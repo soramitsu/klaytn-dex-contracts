@@ -38,9 +38,26 @@ contract PlatformToken is KIP7, AccessControl {
      */
     event DelegateVotesChanged(address indexed delegate, uint256 previousBalance, uint256 newBalance);
 
-    constructor(string memory _name, string memory _symbol, uint8 _decimals) KIP7(_name, _symbol, _decimals) {
+    constructor(string memory _name, string memory _symbol) KIP7(_name, _symbol) {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
+    /**
+     * @dev See {IKIP13-supportsInterface}.
+     */
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override(KIP7, AccessControl)
+        returns (bool)
+    {
+        return
+            interfaceId == type(IKIP7).interfaceId ||
+            interfaceId == type(IKIP7Metadata).interfaceId ||
+            interfaceId == type(IAccessControl).interfaceId ||
+            super.supportsInterface(interfaceId);
+    }
+    
     /**
      * @dev Get the `pos`-th checkpoint for `account`.
      */
