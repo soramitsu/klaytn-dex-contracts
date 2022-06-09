@@ -1,9 +1,10 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
-import { Contract, BigNumber } from 'ethers';
+import { BigNumber } from 'ethers';
+import { FullMathTest } from '../../typechain/FullMathTest';
 
 describe('FullMath', () => {
-  let fm: Contract;
+  let fm: FullMathTest;
   before('deploy FullMathTest', async () => {
     const fmFactoty = await ethers.getContractFactory('FullMathTest');
     fm = await fmFactoty.deploy();

@@ -16,7 +16,7 @@ describe('PlatformToken', () => {
 
   beforeEach(async () => {
     const TokenFactory = await ethers.getContractFactory('PlatformToken');
-    token = await TokenFactory.deploy('Platform Token', 'PTN', 18);
+    token = await TokenFactory.deploy('Platform Token', 'PTN');
     await token.grantRole((await token.MINTER_ROLE()), alice.address);
     await token.deployed();
   });

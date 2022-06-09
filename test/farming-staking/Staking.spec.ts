@@ -24,7 +24,7 @@ describe('Staking', () => {
   });
 
   beforeEach(async () => {
-    ptn = await PTN.deploy('Platform Token', 'PTN', 18);
+    ptn = await PTN.deploy('Platform Token', 'PTN');
     await ptn.deployed();
   });
 

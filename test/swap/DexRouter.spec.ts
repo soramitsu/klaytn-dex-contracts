@@ -7,6 +7,10 @@ import { hexlify } from 'ethers/lib/utils';
 import { ecsign } from 'ethereumjs-util';
 import { routerFixture } from '../shared/fixtures';
 import { getApprovalDigest, mineBlock } from '../shared/utilities';
+import { DexFactory } from '../../typechain/DexFactory';
+import { DexPair } from '../../typechain/DexPair';
+import { KIP7Mock } from '../../typechain/KIP7Mock';
+import { DexRouter } from '../../typechain/DexRouter';
 
 dotenv.config();
 
@@ -14,13 +18,13 @@ const MINIMUM_LIQUIDITY = BigNumber.from(10).pow(3);
 
 describe('DexRouter', () => {
   let wallet: SignerWithAddress;
-  let token0: Contract;
-  let token1: Contract;
-  let router: Contract;
-  let factory: Contract;
-  let pair: Contract;
+  let token0: KIP7Mock;
+  let token1: KIP7Mock;
+  let router: DexRouter;
+  let factory: DexFactory;
+  let pair: DexPair;
   let WKLAY: Contract;
-  let WKLAYPair: Contract;
+  let WKLAYPair: DexPair;
   let WKLAYPartner: Contract;
 
   beforeEach(async () => {
@@ -410,7 +414,7 @@ describe('DexRouter', () => {
         spender: router.address,
         value: expectedLiquidity.sub(MINIMUM_LIQUIDITY),
       },
-      nonce,
+      nonce.toNumber(),
       constants.MaxUint256,
       31337,
     );
@@ -450,7 +454,7 @@ describe('DexRouter', () => {
         spender: router.address,
         value: expectedLiquidity.sub(MINIMUM_LIQUIDITY),
       },
-      nonce,
+      nonce.toNumber(),
       constants.MaxUint256,
       31337,
     );
@@ -711,7 +715,7 @@ describe('DexRouter', () => {
         },
       );
       const receipt = await tx.wait();
-      expect(receipt.gasUsed).to.eq(104341);
+      expect(receipt.gasUsed).to.eq(104285);
     }).retries(3);
   });
 
@@ -828,7 +832,7 @@ describe('DexRouter', () => {
         constants.MaxUint256,
       );
       const receipt = await tx.wait();
-      expect(receipt.gasUsed).to.eq(101461);
+      expect(receipt.gasUsed).to.eq(101562);
     }).retries(3);
   });
 
@@ -880,7 +884,7 @@ describe('DexRouter fee-on-transfer tokens', async () => {
   let DTT: Contract;
   let WKLAY: Contract;
   let router: Contract;
-  let factoryV2: Contract;
+  let factory: Contract;
   let pair: Contract;
   beforeEach(async () => {
     [wallet] = await ethers.getSigners();
@@ -888,14 +892,14 @@ describe('DexRouter fee-on-transfer tokens', async () => {
 
     WKLAY = fixture.WKLAY;
     router = fixture.router;
-    factoryV2 = fixture.factory;
+    factory = fixture.factory;
 
     const DTTFactory = await ethers.getContractFactory('DeflKIP7');
     DTT = await DTTFactory.deploy(ethers.utils.parseEther('10000'));
 
     // make a DTT<>WKLAY pair
-    await factoryV2.createPair(DTT.address, WKLAY.address);
-    const pairAddress = await factoryV2.getPair(DTT.address, WKLAY.address);
+    await factory.createPair(DTT.address, WKLAY.address);
+    const pairAddress = await factory.getPair(DTT.address, WKLAY.address);
     pair = await ethers.getContractAt('DexPair', pairAddress);
   });
 

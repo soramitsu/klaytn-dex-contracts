@@ -5,8 +5,8 @@ import '../tokens/KIP7.sol';
 import '../utils/Ownable.sol';
 
 contract TestToken is Ownable, KIP7 {
-    constructor(string memory _name, string memory _symbol, uint8 _decimals, uint _totalSupply) 
-        KIP7(_name, _symbol, _decimals)
+    constructor(string memory _name, string memory _symbol, uint _totalSupply) 
+        KIP7(_name, _symbol)
     {
         _mint(msg.sender, _totalSupply);
     }

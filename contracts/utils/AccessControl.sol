@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.5.0) (access/AccessControl.sol)
+// OpenZeppelin Contracts (last updated v4.6.0) (access/AccessControl.sol)
 
 pragma solidity ^0.8.0;
 
 import "../interfaces/IAccessControl.sol";
 import "./Context.sol";
 import "./Strings.sol";
+import "./KIP13.sol";
 
 /**
  * @dev Contract module that allows children to implement role-based access
@@ -45,7 +46,7 @@ import "./Strings.sol";
  * grant and revoke this role. Extra precautions should be taken to secure
  * accounts that have been granted it.
  */
-abstract contract AccessControl is Context, IAccessControl {
+abstract contract AccessControl is Context, IAccessControl, KIP13 {
     struct RoleData {
         mapping(address => bool) members;
         bytes32 adminRole;
@@ -71,9 +72,30 @@ abstract contract AccessControl is Context, IAccessControl {
     }
 
     /**
+     * @dev See {IERC165-supportsInterface}.
+     */
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override
+        returns (bool)
+    {
+        return
+            interfaceId == type(IAccessControl).interfaceId ||
+            super.supportsInterface(interfaceId);
+    }
+
+    /**
      * @dev Returns `true` if `account` has been granted `role`.
      */
-    function hasRole(bytes32 role, address account) public view virtual override returns (bool) {
+    function hasRole(bytes32 role, address account)
+        public
+        view
+        virtual
+        override
+        returns (bool)
+    {
         return _roles[role].members[account];
     }
 
@@ -117,7 +139,13 @@ abstract contract AccessControl is Context, IAccessControl {
      *
      * To change a role's admin, use {_setRoleAdmin}.
      */
-    function getRoleAdmin(bytes32 role) public view virtual override returns (bytes32) {
+    function getRoleAdmin(bytes32 role)
+        public
+        view
+        virtual
+        override
+        returns (bytes32)
+    {
         return _roles[role].adminRole;
     }
 
@@ -130,8 +158,15 @@ abstract contract AccessControl is Context, IAccessControl {
      * Requirements:
      *
      * - the caller must have ``role``'s admin role.
+     *
+     * May emit a {RoleGranted} event.
      */
-    function grantRole(bytes32 role, address account) public virtual override onlyRole(getRoleAdmin(role)) {
+    function grantRole(bytes32 role, address account)
+        public
+        virtual
+        override
+        onlyRole(getRoleAdmin(role))
+    {
         _grantRole(role, account);
     }
 
@@ -143,8 +178,15 @@ abstract contract AccessControl is Context, IAccessControl {
      * Requirements:
      *
      * - the caller must have ``role``'s admin role.
+     *
+     * May emit a {RoleRevoked} event.
      */
-    function revokeRole(bytes32 role, address account) public virtual override onlyRole(getRoleAdmin(role)) {
+    function revokeRole(bytes32 role, address account)
+        public
+        virtual
+        override
+        onlyRole(getRoleAdmin(role))
+    {
         _revokeRole(role, account);
     }
 
@@ -161,9 +203,18 @@ abstract contract AccessControl is Context, IAccessControl {
      * Requirements:
      *
      * - the caller must be `account`.
+     *
+     * May emit a {RoleRevoked} event.
      */
-    function renounceRole(bytes32 role, address account) public virtual override {
-        require(account == _msgSender(), "AccessControl: can only renounce roles for self");
+    function renounceRole(bytes32 role, address account)
+        public
+        virtual
+        override
+    {
+        require(
+            account == _msgSender(),
+            "AccessControl: can only renounce roles for self"
+        );
 
         _revokeRole(role, account);
     }
@@ -174,6 +225,8 @@ abstract contract AccessControl is Context, IAccessControl {
      * If `account` had not been already granted `role`, emits a {RoleGranted}
      * event. Note that unlike {grantRole}, this function doesn't perform any
      * checks on the calling account.
+     *
+     * May emit a {RoleGranted} event.
      *
      * [WARNING]
      * ====
@@ -205,6 +258,8 @@ abstract contract AccessControl is Context, IAccessControl {
      * @dev Grants `role` to `account`.
      *
      * Internal function without access restriction.
+     *
+     * May emit a {RoleGranted} event.
      */
     function _grantRole(bytes32 role, address account) internal virtual {
         if (!hasRole(role, account)) {
@@ -217,6 +272,8 @@ abstract contract AccessControl is Context, IAccessControl {
      * @dev Revokes `role` from `account`.
      *
      * Internal function without access restriction.
+     *
+     * May emit a {RoleRevoked} event.
      */
     function _revokeRole(bytes32 role, address account) internal virtual {
         if (hasRole(role, account)) {

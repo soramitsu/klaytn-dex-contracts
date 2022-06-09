@@ -1,6 +1,6 @@
 import { ethers } from 'hardhat';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { FactoryFixture, PairFixture, RouterFixture} from './interfaces';
+import { FactoryFixture, PairFixture, RouterFixture } from './interfaces';
 
 export async function factoryFixture(deployer: SignerWithAddress): Promise<FactoryFixture> {
   const Factory = await ethers.getContractFactory('DexFactory');

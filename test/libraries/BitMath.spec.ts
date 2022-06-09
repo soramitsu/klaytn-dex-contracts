@@ -1,9 +1,10 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
-import { Contract, BigNumber } from 'ethers';
+import { BigNumber } from 'ethers';
+import { BitMathTest } from '../../typechain/BitMathTest';
 
 describe('BitMath', () => {
-  let bitMath: Contract;
+  let bitMath: BitMathTest;
   before('deploy BitMathTest', async () => {
     const bitMathFactoty = await ethers.getContractFactory('BitMathTest');
     bitMath = await bitMathFactoty.deploy();
@@ -14,10 +15,10 @@ describe('BitMath', () => {
       await expect(bitMath.mostSignificantBit(0)).to.be.revertedWith('BitMath::mostSignificantBit: zero');
     });
     it('1', async () => {
-      expect(await bitMath.mostSignificantBit(1)).to.eq(0);
+      expect(await bitMath.mostSignificantBit(BigNumber.from(1))).to.eq(0);
     });
     it('2', async () => {
-      expect(await bitMath.mostSignificantBit(2)).to.eq(1);
+      expect(await bitMath.mostSignificantBit(BigNumber.from(2))).to.eq(1);
     });
     it('all powers of 2', async () => {
       const results = await Promise.all(
@@ -48,10 +49,10 @@ describe('BitMath', () => {
       await expect(bitMath.leastSignificantBit(0)).to.be.revertedWith('BitMath::leastSignificantBit: zero');
     });
     it('1', async () => {
-      expect(await bitMath.leastSignificantBit(1)).to.eq(0);
+      expect(await bitMath.leastSignificantBit(BigNumber.from(1))).to.eq(0);
     });
     it('2', async () => {
-      expect(await bitMath.leastSignificantBit(2)).to.eq(1);
+      expect(await bitMath.leastSignificantBit(BigNumber.from(2))).to.eq(1);
     });
     it('all powers of 2', async () => {
       const results = await Promise.all(

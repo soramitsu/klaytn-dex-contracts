@@ -20,7 +20,6 @@ contract DeflKIP7 is IDexKIP7, KIP13 {
     // Equals to `bytes4(keccak256("onKIP7Received(address,address,uint256,bytes)"))`
     // which can be also obtained as `IKIP7Receiver(0).onKIP7Received.selector`
     bytes4 private constant _KIP7_RECEIVED = 0x9d188c22;
-    bytes4 private constant _INTERFACE_ID_KIP7 = 0x65787371;
 
     bytes32 public immutable DOMAIN_SEPARATOR;
     // keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
@@ -29,7 +28,6 @@ contract DeflKIP7 is IDexKIP7, KIP13 {
 
     constructor(uint256 _totalSupply) {
          _mint(msg.sender, _totalSupply);
-        _registerInterface(_INTERFACE_ID_KIP7);
 
         uint chainId;
         assembly {
@@ -44,6 +42,22 @@ contract DeflKIP7 is IDexKIP7, KIP13 {
                 address(this)
             )
         );
+    }
+
+    /**
+     * @dev See {IKIP13-supportsInterface}.
+     */
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override(IKIP13, KIP13)
+        returns (bool)
+    {
+        return
+            interfaceId == type(IKIP7).interfaceId ||
+            interfaceId == type(IKIP7Metadata).interfaceId ||
+            super.supportsInterface(interfaceId);
     }
 
     function _mint(address to, uint value) internal {
