@@ -1,11 +1,11 @@
 import { ethers } from 'hardhat';
 import { expect } from 'chai';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { Farming__factory } from '../../typechain/factories/Farming__factory';
-import { DexKIP7Test__factory } from '../../typechain/factories/DexKIP7Test__factory';
-import { Farming } from '../../typechain/Farming';
-import { PlatformToken } from '../../typechain/PlatformToken';
-import { DexKIP7Test } from '../../typechain/DexKIP7Test';
+import { Farming__factory } from '../../typechain/factories/farming/Farming__factory';
+import { DexKIP7Test__factory } from '../../typechain/factories/mocks/DexKIP7Test__factory';
+import { Farming } from '../../typechain/farming/Farming';
+import { PlatformToken } from '../../typechain/tokens/PlatformToken';
+import { DexKIP7Test } from '../../typechain/mocks/DexKIP7Test';
 import { advanceBlockTo } from '../shared/utilities';
 
 describe('Farming', () => {
@@ -24,12 +24,12 @@ describe('Farming', () => {
     const ptnFactory = await ethers.getContractFactory('PlatformToken');
     lpFactory = await ethers.getContractFactory('DexKIP7Test');
     farmingFactory = await ethers.getContractFactory('Farming');
-    ptn = await ptnFactory.deploy('PlatformToken', 'PTN');
+    ptn = await ptnFactory.deploy('PlatformToken', 'PTN', minter.address);
     expect(await ptn.hasRole((await ptn.DEFAULT_ADMIN_ROLE()), minter.address)).to.be.equal(true);
     lp1 = await lpFactory.deploy('1000000');
     lp2 = await lpFactory.deploy('1000000');
     lp3 = await lpFactory.deploy('1000000');
-    chef = await farmingFactory.deploy(ptn.address, 1000, 100);
+    chef = await farmingFactory.deploy(ptn.address, 1000, 100, minter.address);
     await ptn.grantRole((await ptn.MINTER_ROLE()), chef.address);
     await lp1.transfer(bob.address, '2000');
     await lp2.transfer(bob.address, '2000');

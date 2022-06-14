@@ -1,12 +1,12 @@
 import { ethers } from 'hardhat';
 import { expect } from 'chai';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { Farming__factory } from '../../typechain/factories/Farming__factory';
-import { PlatformToken__factory } from '../../typechain/factories/PlatformToken__factory';
-import { DexKIP7Test__factory } from '../../typechain/factories/DexKIP7Test__factory';
-import { Farming } from '../../typechain/Farming';
-import { PlatformToken } from '../../typechain/PlatformToken';
-import { DexKIP7Test } from '../../typechain/DexKIP7Test';
+import { Farming__factory } from '../../typechain/factories/farming/Farming__factory';
+import { PlatformToken__factory } from '../../typechain/factories/tokens/PlatformToken__factory';
+import { DexKIP7Test__factory } from '../../typechain/factories/mocks/DexKIP7Test__factory';
+import { Farming } from '../../typechain/farming/Farming';
+import { PlatformToken } from '../../typechain/tokens/PlatformToken';
+import { DexKIP7Test } from '../../typechain/mocks/DexKIP7Test';
 import { advanceBlockTo } from '../shared/utilities';
 
 describe('Farming2', () => {
@@ -29,12 +29,12 @@ describe('Farming2', () => {
   });
 
   beforeEach(async () => {
-    ptn = await PTN.deploy('Platform Token', 'PTN');
+    ptn = await PTN.deploy('Platform Token', 'PTN', minter.address);
     await ptn.deployed();
   });
 
   it('should set correct state variables', async () => {
-    farming = await FarmingF.deploy(ptn.address, '1000', '0');
+    farming = await FarmingF.deploy(ptn.address, '1000', '0', minter.address);
     await farming.deployed();
     expect(await ptn.hasRole((await ptn.DEFAULT_ADMIN_ROLE()), minter.address)).to.be.equal(true);
     await ptn.grantRole((await ptn.MINTER_ROLE()), farming.address);
@@ -66,7 +66,7 @@ describe('Farming2', () => {
 
     it('should allow emergency withdraw', async () => {
       // 100 per block farming rate starting at block 100 with bonus until block 1000
-      farming = await FarmingF.deploy(ptn.address, '100', '100');
+      farming = await FarmingF.deploy(ptn.address, '100', '100', minter.address);
       await farming.deployed();
 
       await farming.add('100', lp.address, true, 1, '10000');
@@ -84,7 +84,7 @@ describe('Farming2', () => {
 
     it('should give out PTNs only after farming time [ @skip-on-coverage ]', async () => {
       // 100 per block farming rate starting at block 100
-      farming = await FarmingF.deploy(ptn.address, '1000', '100');
+      farming = await FarmingF.deploy(ptn.address, '1000', '100', minter.address);
       await farming.deployed();
       await ptn.grantRole((await ptn.MINTER_ROLE()), farming.address);
 
@@ -136,7 +136,7 @@ describe('Farming2', () => {
 
     it('should not distribute ptns if no one deposit [ @skip-on-coverage ]', async () => {
       // 100 per block farming rate starting at block 200
-      farming = await FarmingF.deploy(ptn.address, '1000', '200');
+      farming = await FarmingF.deploy(ptn.address, '1000', '200', minter.address);
       const lp3 = await KIP7LP.deploy('10000000000');
       await farming.deployed();
       await ptn.grantRole((await ptn.MINTER_ROLE()), farming.address);
@@ -162,7 +162,7 @@ describe('Farming2', () => {
 
     it('should distribute ptns properly for each staker [ @skip-on-coverage ]', async () => {
       // 100 per block farming rate starting at block 300
-      farming = await FarmingF.deploy(ptn.address, '100', '300');
+      farming = await FarmingF.deploy(ptn.address, '100', '300', minter.address);
       await farming.deployed();
       await ptn.grantRole((await ptn.MINTER_ROLE()), farming.address);
       await farming.add('100', lp.address, true, 1, '10000');
@@ -215,7 +215,7 @@ describe('Farming2', () => {
 
     it('should distribute ptns properly for each staker on coverage', async () => {
     //   // 100 per block farming rate starting at block 300
-      farming = await FarmingF.deploy(ptn.address, '100', '300');
+      farming = await FarmingF.deploy(ptn.address, '100', '300', minter.address);
       await farming.deployed();
       await ptn.grantRole((await ptn.MINTER_ROLE()), farming.address);
       await farming.add('100', lp.address, true, 1, '10000');
@@ -254,7 +254,7 @@ describe('Farming2', () => {
 
     it('should give proper ptns allocation to each pool [ @skip-on-coverage ]', async () => {
       // 100 per block farming rate starting at block 400
-      farming = await FarmingF.deploy(ptn.address, '100', '400');
+      farming = await FarmingF.deploy(ptn.address, '100', '400', minter.address);
       await ptn.grantRole((await ptn.MINTER_ROLE()), farming.address);
       await lp.connect(alice).approve(farming.address, '1000');
       await lp2.connect(bob).approve(farming.address, '1000');
@@ -299,7 +299,7 @@ describe('Farming2', () => {
     });
     it('should give proper ptns allocation to each pool on-coverage', async () => {
       // 100 per block farming rate starting at block 400
-      farming = await FarmingF.deploy(ptn.address, '100', '400');
+      farming = await FarmingF.deploy(ptn.address, '100', '400', minter.address);
       await ptn.grantRole((await ptn.MINTER_ROLE()), farming.address);
       await lp.connect(alice).approve(farming.address, '1000');
       await lp2.connect(bob).approve(farming.address, '1000');
@@ -335,7 +335,7 @@ describe('Farming2', () => {
 
     it('should update allocation to each pool', async () => {
       // 100 per block farming rate starting at block 600
-      farming = await FarmingF.deploy(ptn.address, '100', '600');
+      farming = await FarmingF.deploy(ptn.address, '100', '600', minter.address);
       await ptn.grantRole((await ptn.MINTER_ROLE()), farming.address);
       await lp.connect(alice).approve(farming.address, '1000');
       await lp2.connect(bob).approve(farming.address, '1000');
