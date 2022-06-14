@@ -38,8 +38,8 @@ contract PlatformToken is KIP7, AccessControl {
      */
     event DelegateVotesChanged(address indexed delegate, uint256 previousBalance, uint256 newBalance);
 
-    constructor(string memory _name, string memory _symbol) KIP7(_name, _symbol) {
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    constructor(string memory _name, string memory _symbol, address _multisig) KIP7(_name, _symbol) {
+        _grantRole(DEFAULT_ADMIN_ROLE, _multisig);
     }
     /**
      * @dev See {IKIP13-supportsInterface}.

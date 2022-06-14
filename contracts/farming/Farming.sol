@@ -58,7 +58,8 @@ contract Farming is Ownable, ReentrancyGuard {
         uint256 indexed pid,
         uint256 allocPoint,
         address indexed token,
-        uint256 bonus
+        uint256 bonusMultiplier,
+        uint256 bonusEndBlock
     );
     event SetPool(uint256 indexed pid, uint256 allocPoint);
     event UpdatePool(
@@ -75,15 +76,19 @@ contract Farming is Ownable, ReentrancyGuard {
         uint256 indexed pid,
         uint256 amount
     );
+    event UpdateRewardPerBlock(uint256 rewardPerBlock);
+    event UpdatePoolMultiplier(uint256 indexed pid, uint256 multiplier);
 
     constructor(
         address _ptn,
         uint256 _ptnPerBlock,
-        uint256 _startBlock
+        uint256 _startBlock,
+        address _multisig
     ) {
         ptn = PlatformToken(_ptn);
         ptnPerBlock = _ptnPerBlock;
         startBlock = _startBlock;
+        _transferOwnership(_multisig);
     }
 
     /// @dev Update reward multiplier for `_pid` pool.
@@ -95,6 +100,7 @@ contract Farming is Ownable, ReentrancyGuard {
     {
         updatePool(_pid);
         poolInfo[_pid].bonusMultiplier = _multiplier.toUint32();
+        emit UpdatePoolMultiplier(_pid, _multiplier);
     }
 
     function updatePtnPerBlock(uint256 _ptnPerBlock) external onlyOwner {
@@ -102,6 +108,7 @@ contract Farming is Ownable, ReentrancyGuard {
         // This could unfairly punish small pools that dont have frequent deposits/withdraws/harvests
         massUpdatePools();
         ptnPerBlock = _ptnPerBlock;
+        emit UpdateRewardPerBlock(_ptnPerBlock);
     }
 
     /// @dev Returns reward multiplier over the given `_from` to `_to` block for `_pid` pool.
@@ -161,9 +168,8 @@ contract Farming is Ownable, ReentrancyGuard {
                 accPtnPerShare: 0
             })
         );
-        // updateStakingPool();
         addedTokens[_lpToken] = true;
-        emit AddPool(poolInfo.length - 1, _allocPoint, _lpToken, _bonusMultiplier);
+        emit AddPool(poolInfo.length - 1, _allocPoint, _lpToken, _bonusMultiplier, _bonusEndBlock);
     }
 
     /// @notice Update the given pool's PTN allocation point. Can only be called by the owner.
