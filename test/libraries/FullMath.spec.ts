@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { BigNumber } from 'ethers';
-import { FullMathTest } from '../../typechain/FullMathTest';
+import { FullMathTest } from '../../typechain/mocks/FullMathTest';
 
 describe('FullMath', () => {
   let fm: FullMathTest;

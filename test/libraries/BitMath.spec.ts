@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { BigNumber } from 'ethers';
-import { BitMathTest } from '../../typechain/BitMathTest';
+import { BitMathTest } from '../../typechain/mocks/BitMathTest';
 
 describe('BitMath', () => {
   let bitMath: BitMathTest;

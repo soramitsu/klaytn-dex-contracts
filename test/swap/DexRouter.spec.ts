@@ -7,10 +7,10 @@ import { hexlify } from 'ethers/lib/utils';
 import { ecsign } from 'ethereumjs-util';
 import { routerFixture } from '../shared/fixtures';
 import { getApprovalDigest, mineBlock } from '../shared/utilities';
-import { DexFactory } from '../../typechain/DexFactory';
-import { DexPair } from '../../typechain/DexPair';
-import { KIP7Mock } from '../../typechain/KIP7Mock';
-import { DexRouter } from '../../typechain/DexRouter';
+import { DexFactory } from '../../typechain/swap/DexFactory';
+import { DexPair } from '../../typechain/swap/DexPair';
+import { KIP7Mock } from '../../typechain/mocks/KIP7TestMock.sol/KIP7Mock';
+import { DexRouter } from '../../typechain/swap/DexRouter';
 
 dotenv.config();
 

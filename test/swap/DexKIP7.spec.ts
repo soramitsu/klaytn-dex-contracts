@@ -9,8 +9,8 @@ import { constants } from 'ethers';
 import { ecsign } from 'ethereumjs-util';
 import { getApprovalDigest } from '../shared/utilities';
 import { factoryFixture } from '../shared/fixtures';
-import { DexKIP7Test } from '../../typechain/DexKIP7Test';
-import { DexKIP7Test__factory } from '../../typechain/factories/DexKIP7Test__factory';
+import { DexKIP7Test } from '../../typechain/mocks/DexKIP7Test';
+import { DexKIP7Test__factory } from '../../typechain/factories/mocks/DexKIP7Test__factory';
 
 dotenv.config();
 

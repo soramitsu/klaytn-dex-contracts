@@ -4,11 +4,11 @@ import { ethers } from 'hardhat';
 import { BigNumber } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { expect, assert } from 'chai';
-import { StakingFactory__factory } from '../../typechain/factories/StakingFactory__factory';
-import { KIP7Mock__factory } from '../../typechain/factories/KIP7Mock__factory';
-import { StakingFactory } from '../../typechain/StakingFactory';
-import { StakingInitializable } from '../../typechain/StakingInitializable';
-import { KIP7Mock } from '../../typechain/KIP7Mock';
+import { StakingFactory__factory } from '../../typechain/factories/farming/StakingFactory__factory';
+import { KIP7Mock__factory } from '../../typechain/factories/mocks/KIP7TestMock.sol/KIP7Mock__factory';
+import { StakingFactory } from '../../typechain/farming/StakingFactory';
+import { StakingInitializable } from '../../typechain/farming/StakingFactoryPool.sol/StakingInitializable';
+import { KIP7Mock } from '../../typechain/mocks/KIP7TestMock.sol/KIP7Mock';
 import { advanceBlockTo } from '../shared/utilities';
 
 describe('StakingFactory', () => {

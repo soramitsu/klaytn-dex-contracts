@@ -4,12 +4,12 @@ import { constants } from 'ethers';
 import { expect } from 'chai';
 import { mineBlock, genOperation, genOperationBatch } from '../shared/utilities';
 import { Operation, BatchOperation } from '../shared/interfaces';
-import { TimelockController } from '../../typechain/TimelockController';
-import { Implementation2 } from '../../typechain/Implementation2';
-import { CallReceiverMock } from '../../typechain/CallReceiverMock';
-import { TimelockController__factory } from '../../typechain/factories/TimelockController__factory';
-import { Implementation2__factory } from '../../typechain/factories/Implementation2__factory';
-import { CallReceiverMock__factory } from '../../typechain/factories/CallReceiverMock__factory';
+import { TimelockController } from '../../typechain/governance/TimelockController';
+import { Implementation2 } from '../../typechain/mocks/RegressionImplementation.sol/Implementation2';
+import { CallReceiverMock } from '../../typechain/mocks/CallReceiverMock';
+import { TimelockController__factory } from '../../typechain/factories/governance/TimelockController__factory';
+import { Implementation2__factory } from '../../typechain/factories/mocks/RegressionImplementation.sol/Implementation2__factory';
+import { CallReceiverMock__factory } from '../../typechain/factories/mocks/CallReceiverMock__factory';
 
 const ZERO_BYTES32 = constants.HashZero;
 const MINDELAY = 86400;

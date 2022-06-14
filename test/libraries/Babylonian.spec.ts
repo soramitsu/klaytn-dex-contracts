@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { BigNumber, constants } from 'ethers';
-import { BabylonianTest } from '../../typechain/BabylonianTest';
+import { BabylonianTest } from '../../typechain/mocks/BabylonianTest';
 
 describe('Babylonian', async () => {
   let babylonian: BabylonianTest;
