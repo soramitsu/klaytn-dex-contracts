@@ -31,7 +31,7 @@ contract Farming is Ownable, ReentrancyGuard {
         address lpToken; // Address of LP token contract.
         uint32 bonusMultiplier; // Bonus multiplier for the farming pool
         uint64 bonusEndBlock; 
-        uint256 stakingTokenTotalAmount;
+        uint256 totalStaked;
         uint64 allocPoint; // How many allocation points assigned to this pool. PTNs to distribute per block.
         uint64 lastRewardBlock; // Last block number that PTNs distribution occurs.
         uint128 accPtnPerShare; // Accumulated PTNs per share, times 1e12.
@@ -162,7 +162,7 @@ contract Farming is Ownable, ReentrancyGuard {
                 lpToken: _lpToken,
                 bonusMultiplier: _bonusMultiplier.toUint32(),
                 bonusEndBlock: _bonusEndBlock.toUint64(),
-                stakingTokenTotalAmount: 0,
+                totalStaked: 0,
                 allocPoint: _allocPoint.toUint64(),
                 lastRewardBlock: lastRewardBlock.toUint64(),
                 accPtnPerShare: 0
@@ -206,7 +206,7 @@ contract Farming is Ownable, ReentrancyGuard {
     function updatePool(uint256 _pid) public {
         PoolInfo storage pool = poolInfo[_pid];
         if (block.number > pool.lastRewardBlock) {
-            uint256 lpSupply = IKIP7(pool.lpToken).balanceOf(address(this));
+            uint256 lpSupply = pool.totalStaked;
             if (lpSupply > 0) {
                 uint256 multiplier = getMultiplier(
                     _pid,
@@ -251,7 +251,7 @@ contract Farming is Ownable, ReentrancyGuard {
                 address(this),
                 _amount
             );
-            pool.stakingTokenTotalAmount += _amount;
+            pool.totalStaked += _amount;
             user.amount += _amount;
         }
         user.rewardDebt = (user.amount * pool.accPtnPerShare) / ACC_PRECISION;
@@ -274,7 +274,7 @@ contract Farming is Ownable, ReentrancyGuard {
         }
         if (_amount > 0) {
             user.amount -= _amount;
-            pool.stakingTokenTotalAmount -= _amount;
+            pool.totalStaked -= _amount;
             IKIP7(pool.lpToken).safeTransfer(msg.sender, _amount);
         }
         user.rewardDebt = (user.amount * pool.accPtnPerShare) / ACC_PRECISION;
@@ -300,7 +300,7 @@ contract Farming is Ownable, ReentrancyGuard {
         UserInfo storage user = userInfo[_pid][msg.sender];
 
         uint256 oldUserAmount = user.amount;
-        pool.stakingTokenTotalAmount -= user.amount;
+        pool.totalStaked -= user.amount;
         user.amount = 0;
         user.rewardDebt = 0;
 
@@ -319,7 +319,7 @@ contract Farming is Ownable, ReentrancyGuard {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][_user];
         uint256 accPtnPerShare = pool.accPtnPerShare;
-        uint256 lpSupply = IKIP7(pool.lpToken).balanceOf(address(this));
+        uint256 lpSupply = pool.totalStaked;
         if (block.number > pool.lastRewardBlock && lpSupply != 0) {
             uint256 multiplier = getMultiplier(
                 _pid,
