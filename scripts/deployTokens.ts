@@ -12,7 +12,7 @@ async function main() {
 
   // Deploy Token
   const Token = await ethers.getContractFactory('TestToken');
-  const tokenInstance = await Token.deploy('Name', 'Symbol', 18, ethers.utils.parseEther('100000000'));
+  const tokenInstance = await Token.deploy('Name', 'Symbol', ethers.utils.parseEther('100000000'));
   await tokenInstance.deployed();
   console.log(`Token deployed to : ${tokenInstance.address}`);
 }
