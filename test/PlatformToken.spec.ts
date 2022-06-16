@@ -8,7 +8,6 @@ describe('PlatformToken', () => {
   let bob: SignerWithAddress;
   let carol: SignerWithAddress;
   let token: Contract;
-  // let chainId: number;
 
   before(async () => {
     [alice, bob, carol] = await ethers.getSigners();
