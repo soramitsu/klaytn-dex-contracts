@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity =0.8.12;
 
-import "../interfaces/IKIP7.sol";
-import "../tokens/PlatformToken.sol";
+import "../interfaces/IPlatformToken.sol";
 import "../utils/access/Ownable.sol";
 import "../utils/SafeCast.sol";
 import "../utils/ReentrancyGuard.sol";
@@ -38,7 +37,7 @@ contract Farming is Ownable, ReentrancyGuard {
     }
 
     // The PTN TOKEN!
-    PlatformToken public ptn;
+    IPlatformToken public ptn;
 
     // PTN tokens created per block.
     uint256 public ptnPerBlock;
@@ -85,7 +84,7 @@ contract Farming is Ownable, ReentrancyGuard {
         uint256 _startBlock,
         address _multisig
     ) {
-        ptn = PlatformToken(_ptn);
+        ptn = IPlatformToken(_ptn);
         ptnPerBlock = _ptnPerBlock;
         startBlock = _startBlock;
         _transferOwnership(_multisig);

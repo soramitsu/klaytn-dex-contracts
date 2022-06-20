@@ -35,6 +35,6 @@ interface IPlatformToken is IKIP7Metadata, IKIP7Permit, IVotes, IAccessControl {
     /**
      * @dev Returns chain ID
      */
-    function getChainId() external view returns (uint256)
+    function getChainId() external view returns (uint256);
 
 }

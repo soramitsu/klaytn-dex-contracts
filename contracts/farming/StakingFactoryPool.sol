@@ -26,7 +26,7 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
         // The block number when PTN mining starts.
         uint64 startBlock;
         // The block number when PTN mining ends.
-        uint64 bonusEndBlock;
+        uint64 rewardEndBlock;
         // The block number of the last pool update
         uint64 lastRewardBlock;
         // Block numbers available for user limit (after start block)
@@ -37,6 +37,8 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
         uint256 accTokenPerShare;
         // PTN tokens created per block.
         uint256 rewardPerBlock;
+        // Staked amount of tokens
+        uint256 totalStaked;
     }
 
     PoolInfo public pool;
@@ -61,26 +63,26 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
         STAKING_FACTORY = msg.sender;
     }
 
-    /*
+    /**
      * @notice Initialize the contract
      * @param _stakedToken: staked token address
      * @param _rewardToken: reward token address
      * @param _rewardPerBlock: reward per block (in rewardToken)
      * @param _startBlock: start block
-     * @param _bonusEndBlock: end block
+     * @param _rewardEndBlock: end block
      * @param _poolLimitPerUser: pool limit per user in stakedToken (if any, else 0)
      * @param _numberBlocksForUserLimit: block numbers available for user limit (after start block)
-     * @param _admin: admin address with ownership
+     * @param _multisig: admin address with ownership
      */
     function initialize(
         address _stakedToken,
         address _rewardToken,
         uint256 _rewardPerBlock,
         uint256 _startBlock,
-        uint256 _bonusEndBlock,
+        uint256 _rewardEndBlock,
         uint256 _poolLimitPerUser,
         uint256 _numberBlocksForUserLimit,
-        address _admin
+        address _multisig
     ) external {
         require(!pool.isInitialized, "Already initialized");
         require(msg.sender == STAKING_FACTORY, "Not factory");
@@ -91,12 +93,9 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
         pool.stakedToken = _stakedToken;
         pool.rewardToken = _rewardToken;
         pool.startBlock = _startBlock.toUint64();
-        pool.bonusEndBlock = _bonusEndBlock.toUint64();
+        pool.rewardEndBlock = _rewardEndBlock.toUint64();
         pool.lastRewardBlock = _startBlock.toUint64();
-        pool.accTokenPerShare = 0;
         pool.rewardPerBlock = _rewardPerBlock;
-        // startBlock = _startBlock;
-        // bonusEndBlock = _bonusEndBlock;
 
         if (_poolLimitPerUser > 0) {
             pool.userLimit = true;
@@ -112,14 +111,11 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
 
         PRECISION_FACTOR = uint256(10**(uint256(30) - decimalsRewardToken));
 
-        // Set the lastRewardBlock as the startBlock
-        // lastRewardBlock = startBlock;
-
-        // Transfer ownership to the admin address who becomes owner of the contract
-        transferOwnership(_admin);
+        // Transfer ownership to the multisig address who becomes owner of the contract
+        transferOwnership(_multisig);
     }
 
-    /*
+    /**
      * @notice Deposit staked tokens and collect reward tokens (if any)
      * @param _amount: amount to withdraw (in rewardToken)
      */
@@ -150,6 +146,7 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
 
         if (_amount > 0) {
             user.amount = user.amount + _amount;
+            pool.totalStaked += _amount;
             TransferHelper.safeTransferFrom(
                 pool.stakedToken,
                 msg.sender,
@@ -163,7 +160,7 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
         emit Deposit(msg.sender, _amount);
     }
 
-    /*
+    /**
      * @notice Withdraw staked tokens and collect reward tokens
      * @param _amount: amount to withdraw (in rewardToken)
      */
@@ -179,6 +176,7 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
 
         if (_amount > 0) {
             user.amount = user.amount - _amount;
+            pool.totalStaked -= _amount;
             TransferHelper.safeTransfer(pool.stakedToken, msg.sender, _amount);
         }
 
@@ -191,7 +189,7 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
         emit Withdraw(msg.sender, _amount);
     }
 
-    /*
+    /**
      * @notice Withdraw staked tokens without caring about rewards rewards
      * @dev Needs to be for emergency.
      */
@@ -212,7 +210,7 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
         emit EmergencyWithdraw(msg.sender, user.amount);
     }
 
-    /*
+    /**
      * @notice Stop rewards
      * @dev Only callable by owner. Needs to be for emergency.
      */
@@ -248,8 +246,8 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
      * @dev Only callable by owner
      */
     function stopReward() external onlyOwner {
-        pool.bonusEndBlock = (block.number).toUint64();
-        emit RewardsStop(pool.bonusEndBlock);
+        pool.rewardEndBlock = (block.number).toUint64();
+        emit RewardsStop(pool.rewardEndBlock);
     }
 
     /*
@@ -291,15 +289,15 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
      * @notice It allows the admin to update start and end blocks
      * @dev This function is only callable by owner.
      * @param _startBlock: the new start block
-     * @param _bonusEndBlock: the new end block
+     * @param _rewardEndBlock: the new end block
      */
     function updateStartAndEndBlocks(
         uint256 _startBlock,
-        uint256 _bonusEndBlock
+        uint256 _rewardEndBlock
     ) external onlyOwner {
         require(block.number < pool.startBlock, "Pool has started");
         require(
-            _startBlock < _bonusEndBlock,
+            _startBlock < _rewardEndBlock,
             "New startBlock must be lower than new endBlock"
         );
         require(
@@ -308,12 +306,12 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
         );
 
         pool.startBlock = _startBlock.toUint64();
-        pool.bonusEndBlock = _bonusEndBlock.toUint64();
+        pool.rewardEndBlock = _rewardEndBlock.toUint64();
 
         // Set the lastRewardBlock as the startBlock
         pool.lastRewardBlock = _startBlock.toUint64();
 
-        emit NewStartAndEndBlocks(_startBlock, _bonusEndBlock);
+        emit NewStartAndEndBlocks(_startBlock, _rewardEndBlock);
     }
 
     /*
@@ -323,9 +321,7 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
      */
     function pendingReward(address _user) external view returns (uint256) {
         UserInfo storage user = userInfo[_user];
-        uint256 stakedTokenSupply = IKIP7Metadata(pool.stakedToken).balanceOf(
-            address(this)
-        );
+        uint256 stakedTokenSupply = pool.totalStaked;
         uint256 share = pool.accTokenPerShare;
         if (block.number > pool.lastRewardBlock && stakedTokenSupply != 0) {
             uint256 multiplier = _getMultiplier(
@@ -353,9 +349,7 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
             return;
         }
 
-        uint256 stakedTokenSupply = IKIP7Metadata(pool.stakedToken).balanceOf(
-            address(this)
-        );
+        uint256 stakedTokenSupply = pool.totalStaked;
 
         if (stakedTokenSupply == 0) {
             pool.lastRewardBlock = (block.number).toUint64();
@@ -381,12 +375,12 @@ contract StakingInitializable is Ownable, ReentrancyGuard {
         view
         returns (uint256)
     {
-        if (_to <= pool.bonusEndBlock) {
+        if (_to <= pool.rewardEndBlock) {
             return _to - _from;
-        } else if (_from >= pool.bonusEndBlock) {
+        } else if (_from >= pool.rewardEndBlock) {
             return 0;
         } else {
-            return pool.bonusEndBlock - _from;
+            return pool.rewardEndBlock - _from;
         }
     }
 

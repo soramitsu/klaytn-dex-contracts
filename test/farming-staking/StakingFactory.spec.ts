@@ -73,7 +73,7 @@ describe('StakingFactory', () => {
       assert.equal(String(pool.rewardPerBlock), rewardPerBlock.toString());
       assert.equal(String(pool.poolLimitPerUser), poolLimitPerUser.toString());
       assert.equal(String(pool.startBlock), startBlock.toString());
-      assert.equal(String(pool.bonusEndBlock), endBlock.toString());
+      assert.equal(String(pool.rewardEndBlock), endBlock.toString());
       assert.equal(await staking.hasUserLimit(), false);
       assert.equal(await staking.owner(), alice.address);
 
