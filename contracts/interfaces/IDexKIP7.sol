@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import './IKIP7.sol';
 import './IKIP13.sol';
 import './IKIP7Metadata.sol';
 
-interface IDexKIP7 is IKIP7, IKIP7Metadata, IKIP13{
+interface IDexKIP7 is IKIP7Metadata, IKIP13{
 
     function DOMAIN_SEPARATOR() external view returns (bytes32);
     function PERMIT_TYPEHASH() external pure returns (bytes32);
