@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity =0.8.12;
 
-import "../utils/Ownable.sol";
+import "../utils/access/Ownable.sol";
 import "../utils/ReentrancyGuard.sol";
 import "../interfaces/IKIP7Metadata.sol";
 import "../libraries/TransferHelper.sol";

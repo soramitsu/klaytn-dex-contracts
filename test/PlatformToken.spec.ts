@@ -26,8 +26,8 @@ describe('PlatformToken', () => {
 
   it('minting restriction', async () => {
     const amount = BigNumber.from('2').pow(BigNumber.from('224'));
-    expect(token.mint(alice.address, amount)).to.be.revertedWith(
-      'PTN: total supply risks overflowing votes',
+    await expect(token.mint(alice.address, amount)).to.be.revertedWith(
+      'KIP7Votes: total supply risks overflowing votes',
     );
   });
 

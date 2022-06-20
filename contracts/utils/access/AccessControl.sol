@@ -3,10 +3,10 @@
 
 pragma solidity ^0.8.0;
 
-import "../interfaces/IAccessControl.sol";
-import "./Context.sol";
-import "./Strings.sol";
-import "./KIP13.sol";
+import "../../interfaces/IAccessControl.sol";
+import "../Context.sol";
+import "../Strings.sol";
+import "../KIP13.sol";
 
 /**
  * @dev Contract module that allows children to implement role-based access

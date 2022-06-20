@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import '../tokens/KIP7.sol';
-import '../utils/Ownable.sol';
+import '../utils/access/Ownable.sol';
 
 contract TestToken is Ownable, KIP7 {
     constructor(string memory _name, string memory _symbol, uint _totalSupply) 
